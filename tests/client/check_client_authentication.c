@@ -39,6 +39,7 @@ static void setup(void) {
     running = true;
 
     /* Load server certificate and private key */
+#if 0 /* FIXME: HUK */
     UA_ByteString certificate;
     certificate.length = SERVER_CERT_DER_LENGTH;
     certificate.data = SERVER_CERT_DER_DATA;
@@ -51,8 +52,10 @@ static void setup(void) {
     UA_ByteString certificate_client;
     certificate_client.length = CLIENT_CERT_AUTH_DER_LENGTH;
     certificate_client.data = CLIENT_CERT_AUTH_DER_DATA;
+#endif
 
     /* Add client certificate to the trust list */
+#if 0 /* FIXME: HUK */
     size_t trustListSize = 1;
     UA_STACKARRAY(UA_ByteString, trustList, trustListSize);
     trustList[0] = certificate_client;
@@ -60,16 +63,13 @@ static void setup(void) {
     UA_ByteString *issuerList = NULL;
     UA_ByteString *revocationList = NULL;
     size_t revocationListSize = 0;
+#endif
 
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
-    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, &certificate, &privateKey,
-                                                   trustList, trustListSize,
-                                                   issuerList, issuerListSize,
-                                                   revocationList, revocationListSize);
+    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
 
-    config->certificateVerification.clear(&config->certificateVerification);
-    UA_CertificateVerification_AcceptAll(&config->certificateVerification);
+    /* FIXME: HUK Addcerts to store */
 
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);
@@ -84,6 +84,7 @@ static void teardown(void) {
 
 START_TEST(Client_connect_certificate) {
     /* Load client certificate and private key for the SecureChannel */
+#if 0 /* FIXME÷ HUK */
     UA_ByteString certificate;
     certificate.length = CLIENT_CERT_DER_LENGTH;
     certificate.data = CLIENT_CERT_DER_DATA;
@@ -91,6 +92,7 @@ START_TEST(Client_connect_certificate) {
     UA_ByteString privateKey;
     privateKey.length = CLIENT_KEY_DER_LENGTH;
     privateKey.data = CLIENT_KEY_DER_DATA;
+#endif
 
     /* Load client certificate and private key for authentication */
     UA_ByteString certificateAuth;
@@ -108,14 +110,15 @@ START_TEST(Client_connect_certificate) {
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
     cc->securityPolicyUri = UA_String_fromChars("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");
 
-    UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
-                                         NULL, 0, NULL, 0);
-    UA_CertificateVerification_AcceptAll(&cc->certificateVerification);
+    UA_ClientConfig_setDefaultEncryption(cc);
+    UA_CertificateManager_AcceptAll(&cc->certificateManager);
 
     /* Set the ApplicationUri used in the certificate */
     UA_String_clear(&cc->clientDescription.applicationUri);
     //cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("http://test.de/root");
+
+    /* FIXME: HUK add certs to store ... */
 
     UA_ClientConfig_setAuthenticationCert(cc, certificateAuth, privateKeyAuth);
     UA_StatusCode retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
@@ -129,6 +132,11 @@ END_TEST
 
 START_TEST(Client_connect_invalid_certificate) {
         /* Load client certificate and private key for the SecureChannel */
+
+
+	/* FIXME: HUK handle certs ... */
+
+#if 0
         UA_ByteString certificate;
         certificate.length = CLIENT_CERT_DER_LENGTH;
         certificate.data = CLIENT_CERT_DER_DATA;
@@ -136,6 +144,7 @@ START_TEST(Client_connect_invalid_certificate) {
         UA_ByteString privateKey;
         privateKey.length = CLIENT_KEY_DER_LENGTH;
         privateKey.data = CLIENT_KEY_DER_DATA;
+#endif
 
         /* Load client certificate and private key for authentication */
         UA_ByteString certificateAuth;
@@ -153,9 +162,8 @@ START_TEST(Client_connect_invalid_certificate) {
         cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
         cc->securityPolicyUri = UA_String_fromChars("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");
 
-        UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
-                                             NULL, 0, NULL, 0);
-        UA_CertificateVerification_AcceptAll(&cc->certificateVerification);
+        UA_ClientConfig_setDefaultEncryption(cc);
+        UA_CertificateManager_AcceptAll(&cc->certificateManager);
 
         /* Set the ApplicationUri used in the certificate */
         UA_String_clear(&cc->clientDescription.applicationUri);
