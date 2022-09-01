@@ -360,6 +360,19 @@ struct UA_ServerConfig {
 #endif
 };
 
+/* Add a new capability to the server configuration object */
+UA_StatusCode UA_EXPORT
+UA_Server_configAddCapability(UA_Server *server, const UA_String *newCapability);
+
+/* Add a new supported private key format to the server configuration */
+UA_StatusCode UA_EXPORT
+UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat);
+
+/* Set max trust list size of server configuration */
+UA_StatusCode UA_EXPORT
+UA_Server_configSetMaxTrustListSize(UA_Server *server, UA_UInt32 size);
+
+
 void UA_EXPORT
 UA_ServerConfig_clean(UA_ServerConfig *config);
 
