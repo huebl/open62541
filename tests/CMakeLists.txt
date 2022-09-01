@@ -236,6 +236,7 @@ ua_add_test(check_eventloop.c)
 ua_add_test(check_eventloop_tcp.c)
 ua_add_test(check_eventloop_udp.c)
 ua_add_test(check_eventloop_interrupt.c)
+ua_add_test(check_serverconfig.c)
 
 # Test Server
 

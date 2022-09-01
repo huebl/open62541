@@ -867,3 +867,156 @@ UA_Server_run(UA_Server *server, const volatile UA_Boolean *running) {
     return UA_Server_run_shutdown(server);
 }
 
+/* Add a new capability to the server configuration object */
+UA_StatusCode
+UA_Server_configAddCapability(UA_Server *server, const UA_String *newCapability) {
+
+    /* Valid Capabilities from deps/ua-nodeset/Schema/ServerCapabilities.csv */
+	static char validServerConfigCapabilities[][16] = {
+	    "NA", "DA", "HD", "AC", "HE", "GDS", "LDS", "DI", "ADI", "FDI",
+        "FDIC", "PLC", "S95", "RCP", "PUB", "AUTOID", "MDIS", "CNC", "PLK", "FDT",
+        "TMC", "CSPP", "61850", "PACKML", "MTC", "AUTOML", "SERCOS", "MIMOSA", "WITSML", "DEXPI",
+        "IOLINK", "VROBOT", "PNO", "PADIM"
+    };
+
+	/* check for nullparameter */
+	if ((server == NULL) || (newCapability == NULL) || UA_String_equal(newCapability, &UA_STRING_NULL)) {
+	    return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	/* Check for valid capability argument */
+	UA_Boolean isValid = false;
+	size_t i = 0;
+	for (i = 0; i < (sizeof(validServerConfigCapabilities)/sizeof(validServerConfigCapabilities[0])); i++) {
+		UA_String str = UA_STRING(validServerConfigCapabilities[i]);
+		if (UA_String_equal(newCapability, &str)) {
+			isValid = true;
+			break;
+		}
+	}
+	if (!isValid) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	/* Read capabilities value */
+	UA_Variant capabilities;
+	UA_Variant_init(&capabilities);
+	UA_StatusCode retval = UA_Server_readValue(server,
+	                       UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES), &capabilities);
+	if (retval != UA_STATUSCODE_GOOD) {
+		return retval;  /* reading capabilities failed */
+	}
+
+	/* Clear incorrectly allocated array dimensions */
+	UA_Array_delete(capabilities.arrayDimensions, capabilities.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
+	capabilities.arrayDimensions = NULL;
+	capabilities.arrayDimensionsSize = 0;
+
+	/* Check for duplicate capability */
+	UA_String *capa = (UA_String *)capabilities.data;
+	for (i = 0; i < capabilities.arrayLength; i++) {
+		if (UA_String_equal(capa + i, newCapability)) {
+			return UA_STATUSCODE_GOOD;  /* already set, nothing to do, no error */
+		}
+	}
+
+	/* Add new capability */
+	retval = UA_Array_resize(&capabilities.data, &capabilities.arrayLength, capabilities.arrayLength + 1,
+	                         &UA_TYPES[UA_TYPES_STRING]);
+	if (retval != UA_STATUSCODE_GOOD) {
+		return retval;
+	}
+
+	retval = UA_String_copy(newCapability, ((UA_String *)capabilities.data) + capabilities.arrayLength - 1);
+	if (retval != UA_STATUSCODE_GOOD) {
+		return retval;
+	}
+
+	retval = UA_Server_writeValue(server,
+	         UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES), capabilities);
+
+	return retval;
+}
+
+/* Add a new private key format to the server configuration */
+UA_StatusCode
+UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat) {
+    /* Valid private key formats are "PFX" and "PEM" */
+	static char validServerConfigKeyFormats[][4] = {"PFX", "PEM"};
+
+	/* Check for null arguments */
+	if ((server == NULL) || (newKeyFormat == NULL) || UA_String_equal(newKeyFormat, &UA_STRING_NULL)) {
+	    return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	/* Check for valid key format argument */
+	UA_Boolean isValid = false;
+	size_t i = 0;
+	for (i = 0; i < (sizeof(validServerConfigKeyFormats)/sizeof(validServerConfigKeyFormats[0])); i++) {
+	    UA_String str = UA_STRING(validServerConfigKeyFormats[i]);
+	    if (UA_String_equal(newKeyFormat, &str)) {
+	        isValid = true;
+	        break;
+	    }
+	}
+	if (!isValid) {
+	    return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	/* Read key formats already set */
+	UA_Variant keyFormats;
+	UA_Variant_init(&keyFormats);
+	UA_StatusCode retval = UA_Server_readValue(server,
+			               UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS),
+						   &keyFormats);
+	if (retval != UA_STATUSCODE_GOOD) {
+	    return retval;  /* reading key formats failed */
+	}
+
+	/* Clear incorrectly allocated array dimensions */
+	UA_Array_delete(keyFormats.arrayDimensions, keyFormats.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
+	keyFormats.arrayDimensions = NULL;
+    keyFormats.arrayDimensionsSize = 0;
+
+    /* Check for duplicate key format */
+    UA_String *keyformat = (UA_String *)keyFormats.data;
+    for (i = 0; i < keyFormats.arrayLength; i++) {
+        if (UA_String_equal(keyformat + i, newKeyFormat)) {
+            return UA_STATUSCODE_GOOD;  /* already set, nothing to do, no error */
+        }
+    }
+
+    /* Add new key format */
+    if((retval = UA_Array_resize(&keyFormats.data, &keyFormats.arrayLength, keyFormats.arrayLength + 1,
+                                 &UA_TYPES[UA_TYPES_STRING]))) {
+        return retval;
+    }
+    if((retval = UA_String_copy(newKeyFormat, ((UA_String *)keyFormats.data) + keyFormats.arrayLength - 1))) {
+        return retval;
+    }
+    retval = UA_Server_writeValue(server,
+             UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS), keyFormats);
+    return retval;
+}
+
+/* Set max trust list size of server configuration */
+UA_StatusCode
+UA_Server_configSetMaxTrustListSize(UA_Server *server, UA_UInt32 size) {
+
+    /* Check for null pointer argument */
+    if (server == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+
+    /* Set the variable MaxTrustListSize of server configuration to size */
+    UA_Variant sizeVar;
+    UA_Variant_init(&sizeVar);
+    UA_Variant_setScalar(&sizeVar, &size, &UA_TYPES[UA_TYPES_UINT32]);
+
+    return UA_Server_writeValue(server,
+           UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_MAXTRUSTLISTSIZE), sizeVar);
+}
+
+
+
+
