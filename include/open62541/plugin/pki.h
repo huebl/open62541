@@ -48,6 +48,20 @@ struct UA_CertificateVerification {
     void (*clear)(UA_CertificateVerification *cv);
 };
 
+struct UA_CertificateManager;
+typedef struct UA_CertificateManager UA_CertificateManager;
+
+struct UA_CertificateManager {
+    void *keyAndCertContext;
+
+    UA_StatusCode (*createCertificateSigningRequest)(const UA_CertificateManager *cm,
+                                                     const UA_String *subject,
+                                                     const UA_ByteString *entropy,
+                                                     UA_ByteString **csr);
+
+    void (*clear)(UA_CertificateManager *cm);
+};
+
 _UA_END_DECLS
 
 #endif /* UA_PLUGIN_PKI_H_ */

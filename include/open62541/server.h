@@ -201,6 +201,7 @@ struct UA_ServerConfig {
     UA_Boolean securityPolicyNoneDiscoveryOnly;
 
     UA_CertificateVerification certificateVerification;
+    UA_CertificateManager certificateManager;
 
     /**
      * See the section for :ref:`access-control
@@ -377,6 +378,31 @@ UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat);
 UA_StatusCode UA_EXPORT
 UA_Server_configSetMaxTrustListSize(UA_Server *server, UA_UInt32 size);
 
+/* Create a Certificate Signing Request (CSR) */
+UA_StatusCode UA_EXPORT
+createSigningRequest(UA_Server *server,
+                                const UA_NodeId *sessionId, void *sessionHandle,
+                                const UA_NodeId *methodId, void *methodContext,
+                                const UA_NodeId *objectId, void *objectContext,
+                                size_t inputSize, const UA_Variant *input,
+                                size_t outputSize, UA_Variant *output);
+
+/* Get the list of rejected certificates */
+UA_StatusCode UA_EXPORT
+getRejectedList(UA_Server *server,
+                const UA_NodeId *sessionId, void *sessionHandle,
+                const UA_NodeId *methodId, void *methodContext,
+                const UA_NodeId *objectId, void *objectContext,
+                size_t inputSize, const UA_Variant *input,
+                size_t outputSize, UA_Variant *output);
+
+#ifdef UA_ENABLE_ENCRYPTION
+/* Setup the Certificate Manager */
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_setupCertificateManager(UA_Server *server,
+                              const UA_ByteString *certificate,
+                              const UA_ByteString *privateKey);
+#endif
 
 void UA_EXPORT
 UA_ServerConfig_clean(UA_ServerConfig *config);
