@@ -86,6 +86,12 @@ static UA_ByteString copyDataFormatAware(const UA_ByteString *data)
     return result;
 }
 
+/* Store rejected certificates in a list */
+typedef struct {
+    UA_ByteString *sign; /* Signature */
+    UA_ByteString *cert; /* Certificate */
+} CertRejectListItem;
+
 typedef struct {
     /* If the folders are defined, we use them to reload the certificates during
      * runtime */
@@ -97,6 +103,12 @@ typedef struct {
     mbedtls_x509_crt certificateTrustList;
     mbedtls_x509_crt certificateIssuerList;
     mbedtls_x509_crl certificateRevocationList;
+
+    /* Rejected certificates list */
+    CertRejectListItem *certRejectList;
+    size_t certRejectListSize;
+    size_t certRejectListSizeMax;
+    size_t certRejectListAddCount;
 } CertInfo;
 
 #ifdef __linux__ /* Linux only so far */
@@ -242,6 +254,165 @@ reloadCertificates(CertInfo *ci) {
 #endif
 
 static UA_StatusCode
+certificateVerification_allow(void *verificationContext,
+                              const UA_ByteString *certificate) {
+    return UA_STATUSCODE_GOOD;
+}
+
+/* Create a ByteString filled with 'data' */
+static UA_ByteString *byteStrNew(const unsigned char *data, size_t len) {
+    UA_ByteString *dupstr = UA_ByteString_new();
+    if (dupstr == NULL) {
+        return NULL;
+    }
+    UA_ByteString_init(dupstr);
+    if (UA_ByteString_allocBuffer(dupstr, len) != UA_STATUSCODE_GOOD) {
+        return NULL;
+    }
+    memcpy(dupstr->data, data, len);
+    return dupstr;
+}
+
+/* Create a copy of a ByteString */
+static inline UA_ByteString *byteStrDup(const UA_ByteString *bstr) {
+    return byteStrNew(bstr->data, bstr->length);
+}
+
+static void certListItem_clear(size_t offset, CertInfo *ci)
+{
+    if (ci->certRejectList != NULL) {
+        if (ci->certRejectList[offset].cert != NULL) {
+            UA_ByteString_delete(ci->certRejectList[offset].cert);
+        }
+        if (ci->certRejectList[offset].sign != NULL) {
+            UA_ByteString_delete(ci->certRejectList[offset].sign);
+        }
+    }
+}
+
+/* Check for signature already in rejected list */
+static UA_Boolean rejectedList_isDuplicate(const UA_ByteString *sign, CertInfo *ci) {
+    if (sign != NULL) {
+        for (size_t i = 0; i < ci->certRejectListSize; i++) {
+            if (UA_ByteString_equal(sign, ci->certRejectList[i].sign)) {
+                return true;  /* duplicate */
+            }
+        }
+    }
+    return false; /* not yet in reject list */
+}
+
+/* Add a rejected certificate and its signature to the list */
+static UA_StatusCode rejectedList_add(const UA_ByteString *certificate,
+                                      const mbedtls_x509_crt *remoteCertificate,
+                                      void *verificationContext) {
+	if (certificate == NULL || remoteCertificate == NULL ||  verificationContext == NULL) {
+	    return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	CertInfo *ci = (CertInfo *)verificationContext;
+	UA_ByteString *sign = byteStrNew(remoteCertificate->sig.p, remoteCertificate->sig.len);
+	if (sign == NULL) {
+	    return UA_STATUSCODE_BADOUTOFMEMORY;
+	}
+	/* Ignore certificate if already in list */
+	if (rejectedList_isDuplicate(sign, ci)) {
+	    UA_ByteString_delete(sign);
+	    return UA_STATUSCODE_GOOD;  /* Signature (and certificate) already in list */
+	}
+	UA_ByteString *cert = byteStrDup(certificate);
+	if (cert == NULL) {
+		UA_ByteString_delete(sign);
+	    return UA_STATUSCODE_BADOUTOFMEMORY;
+	}
+
+	size_t offset = ci->certRejectListAddCount % ci->certRejectListSizeMax;
+
+	if (ci->certRejectListSize < ci->certRejectListSizeMax) {
+	    /* Extend the list */
+	    ci->certRejectList = (CertRejectListItem *)UA_realloc(ci->certRejectList,
+	                         (ci->certRejectListSize + 1) * sizeof(CertRejectListItem));
+	    if (ci->certRejectList == NULL) {
+	    	UA_ByteString_delete(sign);
+	        UA_ByteString_delete(cert);
+	        return UA_STATUSCODE_BADOUTOFMEMORY;
+	    }
+	    /* New empty list item created */
+	    ci->certRejectListSize++;
+	    ci->certRejectList[offset].cert = NULL;
+	    ci->certRejectList[offset].sign = NULL;
+	}
+
+	/* store data in list item at position 'offset', delete former value if exists */
+	certListItem_clear(offset, ci);
+	ci->certRejectList[offset].cert = cert;
+	ci->certRejectList[offset].sign = sign;
+	ci->certRejectListAddCount++;
+	return UA_STATUSCODE_GOOD;
+}
+
+/* Non static wrapper for unit (module) testing only */
+UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
+                                            void *verificationContext) {
+    if (certificate == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    if (verificationContext == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+
+    CertInfo *ci = (CertInfo *)verificationContext;
+
+    /* Parse the certificate */
+    mbedtls_x509_crt remoteCertificate;
+    mbedtls_x509_crt_init(&remoteCertificate);
+    int mbedStatus = mbedtls_x509_crt_parse(&remoteCertificate, certificate->data,
+                                            certificate->length);
+
+    if (mbedStatus) {
+        return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
+    }
+    ci->certRejectListSizeMax = 3;
+    UA_StatusCode retval = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+    mbedtls_x509_crt_free(&remoteCertificate);
+    return retval;
+}
+
+/* Get the rejected certificate list as a ByteString array */
+UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,
+                               void *verificationContext) {
+    if (verificationContext == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    CertInfo *ci = (CertInfo *)verificationContext;
+    if (arraySize == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    *arraySize = 0;
+    if (byteStringArray == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    *byteStringArray =
+        (UA_ByteString *)UA_Array_new(ci->certRejectListSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
+    if (*byteStringArray == NULL) {
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    for (size_t i = 0; i < ci->certRejectListSize; i++) {
+        UA_ByteString_init(*byteStringArray + i);
+        if (UA_ByteString_allocBuffer(*byteStringArray + i,
+                             ci->certRejectList[i].cert->length) != UA_STATUSCODE_GOOD) {
+            *arraySize = i;  /* only i elements are copied */
+            return UA_STATUSCODE_BADOUTOFMEMORY;
+        }
+        memcpy(((*byteStringArray)+i)->data,
+                ci->certRejectList[i].cert->data, ci->certRejectList[i].cert->length);
+    }
+    *arraySize = ci->certRejectListSize;
+    return UA_STATUSCODE_GOOD;
+}
+
+static UA_StatusCode
 certificateVerification_verify(void *verificationContext,
                                const UA_ByteString *certificate) {
     CertInfo *ci = (CertInfo*)verificationContext;
@@ -298,6 +469,8 @@ certificateVerification_verify(void *verificationContext,
         /*                "Could not parse the remote certificate with error: %s", errBuff); */
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
     }
+
+    UA_StatusCode addResult = UA_STATUSCODE_GOOD;
 
     /* Verify */
     mbedtls_x509_crt_profile crtProfile = {
@@ -382,6 +555,10 @@ certificateVerification_verify(void *verificationContext,
                 /* If the CRL file corresponding to the parent certificate is not present
                  * then return UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN */
                 if(!issuerKnown) {
+                	addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+                	if (addResult != UA_STATUSCODE_GOOD) {
+                		return addResult;
+                	}
                     return UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN;
                 }
 
@@ -424,6 +601,10 @@ certificateVerification_verify(void *verificationContext,
             /* If the CRL file corresponding to the parent certificate is not present
              * then return UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN */
             if(!issuerKnown) {
+            	addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+            	if (addResult != UA_STATUSCODE_GOOD) {
+            	    return addResult;
+            	}
                 return UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN;
             }
 
@@ -447,6 +628,10 @@ certificateVerification_verify(void *verificationContext,
 #else
     if((remoteCertificate.private_key_usage & MBEDTLS_X509_KU_KEY_CERT_SIGN) &&
        (remoteCertificate.private_key_usage & MBEDTLS_X509_KU_CRL_SIGN)) {
+    	addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+    	if (addResult != UA_STATUSCODE_GOOD) {
+    		return addResult;
+    	}
         return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
     }
 #endif
@@ -506,6 +691,13 @@ certificateVerification_verify(void *verificationContext,
 #endif
     }
 
+    if (retval != UA_STATUSCODE_GOOD) {
+        addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+        if (addResult != UA_STATUSCODE_GOOD) {
+        	return addResult;
+        }
+    }
+
     mbedtls_x509_crt_free(&remoteCertificate);
     return retval;
 }
@@ -554,6 +746,16 @@ certificateVerification_clear(UA_CertificateVerification *cv) {
 #ifdef UA_ENABLE_CERT_REJECTED_DIR
     UA_String_clear(&ci->rejectedListFolder);
 #endif
+    if (ci->certRejectList != NULL) {
+        /* Clear and free rejected certificates list */
+        for (size_t i = 0; i <  ci->certRejectListSize; i++) {
+            certListItem_clear(i, ci);
+        }
+        UA_free(ci->certRejectList);
+        ci->certRejectList = NULL;
+        ci->certRejectListSize = 0;
+        ci->certRejectListAddCount = 0;
+    }
     UA_free(ci);
     cv->context = NULL;
 }
@@ -595,6 +797,12 @@ UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
     if(!ci)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     memset(ci, 0, sizeof(CertInfo));
+
+    /* Initialize rejected certificates list */
+    ci->certRejectListSizeMax = 256;
+    ci->certRejectListSize = 0;
+    ci->certRejectList = NULL;
+
     mbedtls_x509_crt_init(&ci->certificateTrustList);
     mbedtls_x509_crl_init(&ci->certificateRevocationList);
     mbedtls_x509_crt_init(&ci->certificateIssuerList);
@@ -663,6 +871,12 @@ UA_CertificateVerification_CertFolders(UA_CertificateVerification *cv,
     if(!ci)
         return UA_STATUSCODE_BADOUTOFMEMORY;
     memset(ci, 0, sizeof(CertInfo));
+
+    /* Initialize rejected certificates list */
+    ci->certRejectListSizeMax = 256;
+    ci->certRejectListSize = 0;
+    ci->certRejectList = NULL;
+
     mbedtls_x509_crt_init(&ci->certificateTrustList);
     mbedtls_x509_crl_init(&ci->certificateRevocationList);
     mbedtls_x509_crt_init(&ci->certificateIssuerList);

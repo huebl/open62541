@@ -47,6 +47,20 @@ UA_CertificateVerification_CertFolders(UA_CertificateVerification *cv,
 #endif
 #endif
 
+/* Initialize the Certificate Manager, internal */
+UA_EXPORT UA_StatusCode
+UA_CertificateManager_create(UA_CertificateManager *cm,
+                            const UA_ByteString *certificate,
+                            const UA_ByteString *privateKey);
+
+/* Get the list of rejected certificates */
+UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,
+                                void *verificationContext);
+
+/* Get the list of rejected certificates for testing purposes only */
+UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
+                                            void *verificationContext);
+
 #endif
 
 _UA_END_DECLS

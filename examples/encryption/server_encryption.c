@@ -95,6 +95,8 @@ int main(int argc, char* argv[]) {
                                                        issuerList, issuerListSize,
                                                        revocationList, revocationListSize);
 
+    retval = UA_ServerConfig_setupCertificateManager(server, &certificate, &privateKey);
+
     #ifdef UA_ENABLE_WEBSOCKET_SERVER
     UA_ServerConfig_addNetworkLayerWS(UA_Server_getConfig(server), 7681, 0, 0, &certificate, &privateKey);
     #endif

@@ -74,6 +74,10 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
     if(config->certificateVerification.clear)
         config->certificateVerification.clear(&config->certificateVerification);
 
+    /* Certificate Manager */
+    if (config->certificateManager.clear)
+        config->certificateManager.clear(&config->certificateManager);
+
     /* Access Control */
     if(config->accessControl.clear)
         config->accessControl.clear(&config->accessControl);
