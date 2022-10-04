@@ -70,10 +70,6 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
         config->nodestore.context = NULL;
     }
 
-    /* Certificate Validation */
-    if(config->certificateVerification.clear)
-        config->certificateVerification.clear(&config->certificateVerification);
-
     /* Certificate Manager */
     if (config->certificateManager.clear)
         config->certificateManager.clear(&config->certificateManager);

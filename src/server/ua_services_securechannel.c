@@ -176,7 +176,7 @@ createServerSecureChannel(UA_Server *server, UA_ConnectionManager *cm,
     /* Set up the new SecureChannel */
     UA_SecureChannel_init(&entry->channel);
     entry->channel.config = connConfig;
-    entry->channel.certificateVerification = &config->certificateVerification;
+    entry->channel.certificateManager = &config->certificateManager;
     entry->channel.processOPNHeader = configServerSecureChannel;
     entry->channel.connectionManager = cm;
     entry->channel.connectionId = connectionId;

@@ -581,9 +581,9 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
     UA_CHECK_STATUS(res, return res);
 
     if(asymHeader.senderCertificate.length > 0) {
-        if(channel->certificateVerification)
-            res = channel->certificateVerification->
-                verifyCertificate(channel->certificateVerification->context,
+        if(channel->certificateManager)
+            res = channel->certificateManager->
+                verifyCertificate(channel->certificateManager,
                                   &asymHeader.senderCertificate);
         else
             res = UA_STATUSCODE_BADINTERNALERROR;
@@ -806,10 +806,12 @@ processChunks(UA_SecureChannel *channel, void *application,
                 res = unpackPayloadOPN(channel, chunk, application);
         } else if(chunk->messageType == UA_MESSAGETYPE_MSG ||
                   chunk->messageType == UA_MESSAGETYPE_CLO) {
-            if(channel->state == UA_SECURECHANNELSTATE_CLOSED)
+            if(channel->state == UA_SECURECHANNELSTATE_CLOSED) {
                 res = UA_STATUSCODE_BADSECURECHANNELCLOSED;
-            else
+            }
+            else {
                 res = unpackPayloadMSG(channel, chunk);
+            }
         } else {
             chunk->bytes.data += UA_SECURECHANNEL_MESSAGEHEADER_LENGTH;
             chunk->bytes.length -= UA_SECURECHANNEL_MESSAGEHEADER_LENGTH;

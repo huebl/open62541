@@ -1,6 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. 
  *
  *    Copyright 2014-2020 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
  *    Copyright 2017 (c) Florian Palm
@@ -152,7 +152,7 @@ struct UA_SecureChannel {
     UA_ByteString incompleteChunk; /* A half-received chunk (TCP is a
                                     * streaming protocol) is stored here */
 
-    UA_CertificateVerification *certificateVerification;
+    UA_CertificateManager *certificateManager;
     UA_StatusCode (*processOPNHeader)(void *application, UA_SecureChannel *channel,
                                       const UA_AsymmetricAlgorithmSecurityHeader *asymHeader);
 };

@@ -27,6 +27,8 @@
 #include <open62541/plugin/eventloop.h>
 #include <open62541/plugin/accesscontrol.h>
 #include <open62541/plugin/securitypolicy.h>
+#include <open62541/plugin/certificate_manager.h>
+#include <open62541/plugin/certstore.h>
 
 #ifdef UA_ENABLE_PUBSUB
 #include <open62541/server_pubsub.h>
@@ -195,7 +197,6 @@ struct UA_ServerConfig {
      * securityPolicies list. */
     UA_Boolean securityPolicyNoneDiscoveryOnly;
 
-    UA_CertificateVerification certificateVerification;
     UA_CertificateManager certificateManager;
 
     /**

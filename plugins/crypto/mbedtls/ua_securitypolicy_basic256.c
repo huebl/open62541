@@ -11,9 +11,9 @@
  */
 
 #include <open62541/plugin/securitypolicy.h>
-#include <open62541/plugin/pki.h>
 #include <open62541/types.h>
 #include <open62541/util.h>
+#include "../../../include/open62541/plugin/certificate_manager.h"
 
 #ifdef UA_ENABLE_ENCRYPTION_MBEDTLS
 

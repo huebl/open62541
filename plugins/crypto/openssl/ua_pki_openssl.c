@@ -920,12 +920,12 @@ errout:
 
 #ifdef __linux__ /* Linux only so far */
 UA_StatusCode
-UA_CertificateVerification_CertFolders(UA_CertificateVerification * cv,
+UA_CertificateVerification_CertFolders(UACertificateManager*  certificateManager,
                                        const char *                 trustListFolder,
                                        const char *                 issuerListFolder,
                                        const char *                 revocationListFolder) {
     UA_StatusCode ret;
-    if (cv == NULL) {
+    if (certificateManager == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -938,10 +938,16 @@ UA_CertificateVerification_CertFolders(UA_CertificateVerification * cv,
         return ret;
     }
 
-    cv->verifyApplicationURI = UA_CertificateVerification_VerifyApplicationURI;
-    cv->clear = UA_CertificateVerification_clear;
-    cv->context = context;
-    cv->verifyCertificate = UA_CertificateVerification_Verify;
+    certificateManager->verifyApplicationURI = UA_CertificateVerification_VerifyApplicationURI;
+    certificateManager->clear = UA_CertificateVerification_clear;
+    certificateManager->context = context;
+    if(trustListFolder == NULL &&
+       issuerListFolder == NULL &&
+       revocationListFolder == NULL) {
+    	certificateManager->verifyCertificate = UA_VerifyCertificateAllowAll;
+    } else {
+    	certificateManager->verifyCertificate = UA_CertificateVerification_Verify;
+    }
 
     /* Only set the folder paths. They will be reloaded during runtime. */
 

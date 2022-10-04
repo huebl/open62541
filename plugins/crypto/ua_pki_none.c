@@ -7,25 +7,25 @@
 #include <open62541/plugin/pki_default.h>
 
 static UA_StatusCode
-verifyCertificateAllowAll(void *verificationContext,
+verifyCertificateAllowAll(UA_CertificateManager* certificateManager,
                const UA_ByteString *certificate) {
     return UA_STATUSCODE_GOOD;
 }
 
 static UA_StatusCode
-verifyApplicationURIAllowAll(void *verificationContext,
+verifyApplicationURIAllowAll(UA_CertificateManager* certificateManager,
                              const UA_ByteString *certificate,
                              const UA_String *applicationURI) {
     return UA_STATUSCODE_GOOD;
 }
 
 static void
-clearVerifyAllowAll(UA_CertificateVerification *cv) {
+clearVerifyAllowAll(UA_CertificateManager* certificateManager) {
 
 }
 
-void UA_CertificateVerification_AcceptAll(UA_CertificateVerification *cv) {
-    cv->verifyCertificate = verifyCertificateAllowAll;
-    cv->verifyApplicationURI = verifyApplicationURIAllowAll;
-    cv->clear = clearVerifyAllowAll;
+void UA_CertificateManager_AcceptAll(UA_CertificateManager* certificateManager) {
+	certificateManager->verifyCertificate = verifyCertificateAllowAll;
+	certificateManager->verifyApplicationURI = verifyApplicationURIAllowAll;
+	certificateManager->clear = clearVerifyAllowAll;
 }

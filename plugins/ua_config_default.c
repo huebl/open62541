@@ -267,7 +267,7 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
 
     /* Certificate Verification that accepts every certificate. Can be
      * overwritten when the policy is specialized. */
-    UA_CertificateVerification_AcceptAll(&conf->certificateVerification);
+    UA_CertificateManager_AcceptAll(&conf->certificateManager);
 
     /* * Global Node Lifecycle * */
     /* conf->nodeLifecycle.constructor = NULL; */
@@ -733,10 +733,10 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf,
         return retval;
     }
 
-    retval = UA_CertificateVerification_Trustlist(&conf->certificateVerification,
-                                                  trustList, trustListSize,
-                                                  issuerList, issuerListSize,
-                                                  revocationList, revocationListSize);
+    retval = UA_CertificateManager_Trustlist(&conf->certificateManager,
+                                             trustList, trustListSize,
+                                             issuerList, issuerListSize,
+                                             revocationList, revocationListSize);
     if (retval != UA_STATUSCODE_GOOD)
         return retval;
 
@@ -746,12 +746,7 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf,
         return retval;
     }
 
-    UA_CertificateVerification accessControlVerification;
-    retval = UA_CertificateVerification_Trustlist(&accessControlVerification,
-                                                  trustList, trustListSize,
-                                                  issuerList, issuerListSize,
-                                                  revocationList, revocationListSize);
-    retval |= UA_AccessControl_default(conf, true, &accessControlVerification,
+    retval |= UA_AccessControl_default(conf, true, &conf->certificateManager,
                 &conf->securityPolicies[conf->securityPoliciesSize-1].policyUri,
                 usernamePasswordsSize, usernamePasswords);
     if(retval != UA_STATUSCODE_GOOD) {
@@ -839,6 +834,18 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
                        "Any remote certificate will be accepted.");
     }
 
+    config->sessionLocaleIds = NULL;
+    config->sessionLocaleIds = 0;
+
+    config->localConnectionConfig = UA_ConnectionConfig_default;
+
+    /* Certificate Verification that accepts every certificate. Can be
+     * overwritten when the policy is specialized. */
+    UA_CertificateManager_AcceptAll(&config->certificateManager);
+    UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_USERLAND,
+                   "AcceptAll Certificate Verification. "
+                   "Any remote certificate will be accepted.");
+
     /* With encryption enabled, the applicationUri needs to match the URI from
      * the certificate */
     if(!config->clientDescription.applicationUri.data)
@@ -881,10 +888,10 @@ UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config,
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
-    retval = UA_CertificateVerification_Trustlist(&config->certificateVerification,
-                                                  trustList, trustListSize,
-                                                  NULL, 0,
-                                                  revocationList, revocationListSize);
+    retval = UA_CertificateManager_Trustlist(&config->certificateManager,
+                                             trustList, trustListSize,
+                                             NULL, 0,
+                                             revocationList, revocationListSize);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 

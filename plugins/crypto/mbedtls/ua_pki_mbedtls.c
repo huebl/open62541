@@ -254,7 +254,7 @@ reloadCertificates(CertInfo *ci) {
 #endif
 
 static UA_StatusCode
-certificateVerification_allow(void *verificationContext,
+certificateVerification_allow(UA_CertificateManager* certificateManager,
                               const UA_ByteString *certificate) {
     return UA_STATUSCODE_GOOD;
 }
@@ -305,12 +305,13 @@ static UA_Boolean rejectedList_isDuplicate(const UA_ByteString *sign, CertInfo *
 /* Add a rejected certificate and its signature to the list */
 static UA_StatusCode rejectedList_add(const UA_ByteString *certificate,
                                       const mbedtls_x509_crt *remoteCertificate,
-                                      void *verificationContext) {
-	if (certificate == NULL || remoteCertificate == NULL ||  verificationContext == NULL) {
+                                      UA_CertificateManager* certificateManager) {
+	if (certificate == NULL || remoteCertificate == NULL ||
+	    certificateManager == NULL || certificateManager->context == NULL) {
 	    return UA_STATUSCODE_BADINVALIDARGUMENT;
 	}
 
-	CertInfo *ci = (CertInfo *)verificationContext;
+	CertInfo *ci = (CertInfo *)certificateManager->context;
 	UA_ByteString *sign = byteStrNew(remoteCertificate->sig.p, remoteCertificate->sig.len);
 	if (sign == NULL) {
 	    return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -353,15 +354,13 @@ static UA_StatusCode rejectedList_add(const UA_ByteString *certificate,
 
 /* Non static wrapper for unit (module) testing only */
 UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
-                                            void *verificationContext) {
-    if (certificate == NULL) {
-        return UA_STATUSCODE_BADINVALIDARGUMENT;
-    }
-    if (verificationContext == NULL) {
+                                           UA_CertificateManager* certificateManager) {
+    if (certificate == NULL || certificateManager == NULL ||
+        certificateManager->context == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
 
-    CertInfo *ci = (CertInfo *)verificationContext;
+    CertInfo *ci = (CertInfo *)certificateManager->context;
 
     /* Parse the certificate */
     mbedtls_x509_crt remoteCertificate;
@@ -373,18 +372,18 @@ UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
     }
     ci->certRejectListSizeMax = 3;
-    UA_StatusCode retval = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+    UA_StatusCode retval = rejectedList_add(certificate, &remoteCertificate, certificateManager);
     mbedtls_x509_crt_free(&remoteCertificate);
     return retval;
 }
 
 /* Get the rejected certificate list as a ByteString array */
 UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,
-                               void *verificationContext) {
-    if (verificationContext == NULL) {
+                               UA_CertificateManager* certificateManager) {
+    if (certificateManager == NULL || certificateManager->context) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
-    CertInfo *ci = (CertInfo *)verificationContext;
+    CertInfo *ci = (CertInfo *)certificateManager->context;
     if (arraySize == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
@@ -413,9 +412,9 @@ UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySiz
 }
 
 static UA_StatusCode
-certificateVerification_verify(void *verificationContext,
+certificateVerification_verify(UA_CertificateManager* certificateManager,
                                const UA_ByteString *certificate) {
-    CertInfo *ci = (CertInfo*)verificationContext;
+    CertInfo *ci = (CertInfo*)certificateManager->context;
     if(!ci)
         return UA_STATUSCODE_BADINTERNALERROR;
 
@@ -555,7 +554,7 @@ certificateVerification_verify(void *verificationContext,
                 /* If the CRL file corresponding to the parent certificate is not present
                  * then return UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN */
                 if(!issuerKnown) {
-                	addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+                	addResult = rejectedList_add(certificate, &remoteCertificate, certificateManager);
                 	if (addResult != UA_STATUSCODE_GOOD) {
                 		return addResult;
                 	}
@@ -601,7 +600,7 @@ certificateVerification_verify(void *verificationContext,
             /* If the CRL file corresponding to the parent certificate is not present
              * then return UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN */
             if(!issuerKnown) {
-            	addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+            	addResult = rejectedList_add(certificate, &remoteCertificate, certificateManager);
             	if (addResult != UA_STATUSCODE_GOOD) {
             	    return addResult;
             	}
@@ -692,7 +691,7 @@ certificateVerification_verify(void *verificationContext,
     }
 
     if (retval != UA_STATUSCODE_GOOD) {
-        addResult = rejectedList_add(certificate, &remoteCertificate, verificationContext);
+        addResult = rejectedList_add(certificate, &remoteCertificate, certificateManager);
         if (addResult != UA_STATUSCODE_GOOD) {
         	return addResult;
         }
@@ -703,10 +702,14 @@ certificateVerification_verify(void *verificationContext,
 }
 
 static UA_StatusCode
-certificateVerification_verifyApplicationURI(void *verificationContext,
+certificateVerification_verifyApplicationURI(UA_CertificateManager* certificateManager,
                                              const UA_ByteString *certificate,
                                              const UA_String *applicationURI) {
-    CertInfo *ci = (CertInfo*)verificationContext;
+	if (certificateManager == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+    CertInfo *ci = (CertInfo*)certificateManager->context;
     if(!ci)
         return UA_STATUSCODE_BADINTERNALERROR;
 
@@ -733,8 +736,8 @@ certificateVerification_verifyApplicationURI(void *verificationContext,
 }
 
 static void
-certificateVerification_clear(UA_CertificateVerification *cv) {
-    CertInfo *ci = (CertInfo*)cv->context;
+certificateVerification_clear(UA_CertificateManager *certificateManager) {
+    CertInfo *ci = (CertInfo*)certificateManager->context;
     if(!ci)
         return;
     mbedtls_x509_crt_free(&ci->certificateTrustList);
@@ -757,7 +760,7 @@ certificateVerification_clear(UA_CertificateVerification *cv) {
         ci->certRejectListAddCount = 0;
     }
     UA_free(ci);
-    cv->context = NULL;
+    certificateManager->context = NULL;
 }
 
 static UA_StatusCode
@@ -786,13 +789,13 @@ getCertificate_ExpirationDate(UA_DateTime *expiryDateTime,
 }
 
 UA_StatusCode
-UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
-                                     const UA_ByteString *certificateTrustList,
-                                     size_t certificateTrustListSize,
-                                     const UA_ByteString *certificateIssuerList,
-                                     size_t certificateIssuerListSize,
-                                     const UA_ByteString *certificateRevocationList,
-                                     size_t certificateRevocationListSize) {
+UA_CertificateManager_Trustlist(UA_CertificateManager *certificateManager,
+                                const UA_ByteString *certificateTrustList,
+                                size_t certificateTrustListSize,
+                                const UA_ByteString *certificateIssuerList,
+                                size_t certificateIssuerListSize,
+                                const UA_ByteString *certificateRevocationList,
+                                size_t certificateRevocationListSize) {
     CertInfo *ci = (CertInfo*)UA_malloc(sizeof(CertInfo));
     if(!ci)
         return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -807,11 +810,13 @@ UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
     mbedtls_x509_crl_init(&ci->certificateRevocationList);
     mbedtls_x509_crt_init(&ci->certificateIssuerList);
 
-    cv->context = (void*)ci;
-    cv->verifyCertificate = certificateVerification_verify;
-    cv->clear = certificateVerification_clear;
-    cv->verifyApplicationURI = certificateVerification_verifyApplicationURI;
-    cv->getExpirationDate = getCertificate_ExpirationDate;
+    certificateManager->context = (void*)ci;
+    if(certificateTrustListSize > 0)
+    	certificateManager->verifyCertificate = certificateVerification_verify;
+    else
+    	certificateManager->verifyCertificate = certificateVerification_allow;
+    certificateManager->clear = certificateVerification_clear;
+    certificateManager->verifyApplicationURI = certificateVerification_verifyApplicationURI;
 
     int err;
     UA_ByteString data;
@@ -847,7 +852,7 @@ UA_CertificateVerification_Trustlist(UA_CertificateVerification *cv,
 
     return UA_STATUSCODE_GOOD;
 error:
-    certificateVerification_clear(cv);
+    certificateVerification_clear(certificateManager);
     return UA_STATUSCODE_BADINTERNALERROR;
 }
 
@@ -855,14 +860,14 @@ error:
 
 #ifdef UA_ENABLE_CERT_REJECTED_DIR
 UA_StatusCode
-UA_CertificateVerification_CertFolders(UA_CertificateVerification *cv,
+UA_CertificateManager_CertFolders(UA_CertificateManager* certificateManager,
                                        const char *trustListFolder,
                                        const char *issuerListFolder,
                                        const char *revocationListFolder,
                                        const char *rejectedListFolder) {
 #else
 UA_StatusCode
-UA_CertificateVerification_CertFolders(UA_CertificateVerification *cv,
+UA_CertificateManager_CertFolders(UA_CertificateManager *certificateManager,
                                        const char *trustListFolder,
                                        const char *issuerListFolder,
                                        const char *revocationListFolder) {
@@ -892,10 +897,10 @@ UA_CertificateVerification_CertFolders(UA_CertificateVerification *cv,
 
     reloadCertificates(ci);
 
-    cv->context = (void*)ci;
-    cv->verifyCertificate = certificateVerification_verify;
-    cv->clear = certificateVerification_clear;
-    cv->verifyApplicationURI = certificateVerification_verifyApplicationURI;
+    certificateManager->context = (void*)ci;
+    certificateManager->verifyCertificate = certificateVerification_verify;
+    certificateManager->clear = certificateVerification_clear;
+    certificateManager->verifyApplicationURI = certificateVerification_verifyApplicationURI;
 
     return UA_STATUSCODE_GOOD;
 }

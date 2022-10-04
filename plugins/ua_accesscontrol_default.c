@@ -21,7 +21,7 @@ typedef struct {
     UA_Boolean allowAnonymous;
     size_t usernamePasswordLoginSize;
     UA_UsernamePasswordLogin *usernamePasswordLogin;
-    UA_CertificateVerification verifyX509;
+    UA_CertificateManager *verifyX509;
 } AccessControlContext;
 
 #define ANONYMOUS_POLICY "open62541-anonymous-policy"
@@ -121,11 +121,11 @@ activateSession_default(UA_Server *server, UA_AccessControl *ac,
         if(!UA_String_equal(&userToken->policyId, &certificate_policy))
             return UA_STATUSCODE_BADIDENTITYTOKENINVALID;
 
-        if(!context->verifyX509.verifyCertificate)
+        if(!context->verifyX509 || !context->verifyX509->verifyCertificate)
             return UA_STATUSCODE_BADIDENTITYTOKENINVALID;
 
-        return context->verifyX509.
-            verifyCertificate(context->verifyX509.context,
+        return context->verifyX509->
+            verifyCertificate(context->verifyX509,
                               &userToken->certificateData);
     }
 
@@ -260,8 +260,8 @@ static void clear_default(UA_AccessControl *ac) {
         if(context->usernamePasswordLoginSize > 0)
             UA_free(context->usernamePasswordLogin);
 
-        if(context->verifyX509.clear)
-            context->verifyX509.clear(&context->verifyX509);
+        if(context->verifyX509 && context->verifyX509->clear)
+            context->verifyX509->clear(context->verifyX509);
 
         UA_free(ac->context);
         ac->context = NULL;
@@ -271,7 +271,7 @@ static void clear_default(UA_AccessControl *ac) {
 UA_StatusCode
 UA_AccessControl_default(UA_ServerConfig *config,
                          UA_Boolean allowAnonymous,
-                         UA_CertificateVerification *verifyX509,
+                         UA_CertificateManager *verifyX509,
                          const UA_ByteString *userTokenPolicyUri,
                          size_t usernamePasswordLoginSize,
                          const UA_UsernamePasswordLogin *usernamePasswordLogin) {
@@ -321,10 +321,9 @@ UA_AccessControl_default(UA_ServerConfig *config,
 
     /* Allow x509 certificates? Move the plugin over. */
     if(verifyX509) {
-        context->verifyX509 = *verifyX509;
-        memset(verifyX509, 0, sizeof(UA_CertificateVerification));
+        context->verifyX509 = verifyX509;
     } else {
-        memset(&context->verifyX509, 0, sizeof(UA_CertificateVerification));
+    	context->verifyX509 = NULL;
         UA_LOG_INFO(&config->logger, UA_LOGCATEGORY_SERVER,
                     "AccessControl: x509 certificate user authentication is enabled");
     }

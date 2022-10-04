@@ -532,14 +532,14 @@ getSecurityPolicyByUri(const UA_Server *server, const UA_ByteString *securityPol
 /* The local ApplicationURI has to match the certificates of the
  * SecurityPolicies */
 static UA_StatusCode
-verifyServerApplicationURI(const UA_Server *server) {
+verifyServerApplicationURI(UA_Server *server) {
     const UA_String securityPolicyNoneUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
     for(size_t i = 0; i < server->config.securityPoliciesSize; i++) {
         UA_SecurityPolicy *sp = &server->config.securityPolicies[i];
         if(UA_String_equal(&sp->policyUri, &securityPolicyNoneUri) && (sp->localCertificate.length == 0))
             continue;
-        UA_StatusCode retval = server->config.certificateVerification.
-            verifyApplicationURI(server->config.certificateVerification.context,
+        UA_StatusCode retval = server->config.certificateManager.
+            verifyApplicationURI(&server->config.certificateManager,
                                  &sp->localCertificate,
                                  &server->config.applicationDescription.applicationUri);
 
@@ -1099,11 +1099,11 @@ getRejectedList(UA_Server *server,
 	size_t listSize;
 
 	UA_ServerConfig *config = UA_Server_getConfig(server);
-	if (config->certificateVerification.context == NULL) {
+	if (config->certificateManager.context == NULL) {
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
 
-	UA_StatusCode retval = rejectedList_get(&list, &listSize, config->certificateVerification.context);
+	UA_StatusCode retval = rejectedList_get(&list, &listSize, &config->certificateManager);
 	UA_CHECK_STATUS(retval, return retval);
 	UA_Variant_setArray(output, list, listSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
 

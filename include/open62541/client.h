@@ -142,7 +142,7 @@ typedef struct {
     UA_SecurityPolicy *securityPolicies;
 
     /* Certificate Verification Plugin */
-    UA_CertificateVerification certificateVerification;
+    UA_CertificateManager certificateManager;
 
     /* Callback for state changes. The client state is differentated into the
      * SecureChannel state and the Session state. The connectStatus is set if

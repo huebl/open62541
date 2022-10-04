@@ -1252,13 +1252,13 @@ int main(int argc, char **argv) {
                                                        NULL, 0, NULL, 0, NULL, 0);
     if(res != UA_STATUSCODE_GOOD)
         goto cleanup;
-    config.certificateVerification.clear(&config.certificateVerification);
+    config.certificateManager.clear(&config.certificateManager);
 #ifdef UA_ENABLE_CERT_REJECTED_DIR
-    res = UA_CertificateVerification_CertFolders(&config.certificateVerification,
+    res = UA_CertificateManager_CertFolders(&config.certificateManager,
                                                  trustlistFolder, issuerlistFolder,
                                                  revocationlistFolder, NULL);
 #else
-    res = UA_CertificateVerification_CertFolders(&config.certificateVerification,
+    res = UA_CertificateVerification_CertFolders(&config.certificateManager,
                                                  trustlistFolder, issuerlistFolder,
                                                  revocationlistFolder);
 #endif

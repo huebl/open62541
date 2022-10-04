@@ -293,9 +293,9 @@ Service_CreateSession(UA_Server *server, UA_SecureChannel *channel,
     }
 
     if(request->clientCertificate.length > 0) {
-        UA_CertificateVerification *cv = &server->config.certificateVerification;
+        UA_CertificateManager *cm = &server->config.certificateManager;
         response->responseHeader.serviceResult =
-            cv->verifyApplicationURI(cv->context, &request->clientCertificate,
+            cm->verifyApplicationURI(cm, &request->clientCertificate,
                                      &request->clientDescription.applicationUri);
         if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_CHANNEL(&server->config.logger, channel,

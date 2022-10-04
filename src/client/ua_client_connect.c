@@ -1063,7 +1063,7 @@ verifyClientSecurechannelHeader(void *application, UA_SecureChannel *channel,
 /* The local ApplicationURI has to match the certificates of the
  * SecurityPolicies */
 static void
-verifyClientApplicationURI(const UA_Client *client) {
+verifyClientApplicationURI(UA_Client *client) {
 #if defined(UA_ENABLE_ENCRYPTION) && (UA_LOGLEVEL <= 400)
     for(size_t i = 0; i < client->config.securityPoliciesSize; i++) {
         UA_SecurityPolicy *sp = &client->config.securityPolicies[i];
@@ -1075,10 +1075,11 @@ verifyClientApplicationURI(const UA_Client *client) {
         }
 
         UA_StatusCode retval =
-            client->config.certificateVerification.
-            verifyApplicationURI(client->config.certificateVerification.context,
-                                 &sp->localCertificate,
-                                 &client->config.clientDescription.applicationUri);
+            client->config.certificateManager.
+                verifyApplicationURI(&client->config.certificateManager,
+                                     &sp->localCertificate,
+                                     &client->config.clientDescription.applicationUri);
+
         if(retval != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                            "The configured ApplicationURI does not match the URI "
@@ -1239,7 +1240,7 @@ initConnect(UA_Client *client) {
     /* Initialize the SecureChannel */
     UA_SecureChannel_init(&client->channel);
     client->channel.config = client->config.localConnectionConfig;
-    client->channel.certificateVerification = &client->config.certificateVerification;
+    client->channel.certificateManager = &client->config.certificateManager;
     client->channel.processOPNHeader = verifyClientSecurechannelHeader;
 
     /* Initialize the SecurityPolicy */
