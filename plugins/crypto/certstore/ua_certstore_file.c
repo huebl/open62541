@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 #include <libgen.h>
 
-// TODO: Move to util?
 static UA_StatusCode
 readFileToByteString(const char *const path, UA_ByteString *data) {
     /* Open the file */
@@ -146,7 +145,25 @@ clear_file(UA_PKIStore *certStore) {
 
 static UA_StatusCode
 storeTrustList_file(UA_PKIStore *certStore, const UA_TrustListDataType *trustList) {
-    return UA_STATUSCODE_GOOD;
+    return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+static UA_StatusCode
+loadRejectedList(UA_PKIStore *pkiStore, UA_ByteString **rejectedList, size_t *rejectedListSize)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+static UA_StatusCode
+storeRejectedList(UA_PKIStore *pkiStore, const UA_ByteString *rejectedList, size_t rejectedListSize)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+static UA_StatusCode
+appendRejectedList(UA_PKIStore *pkiStore, const UA_ByteString *certificate)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
 }
 
 static UA_StatusCode
@@ -177,6 +194,25 @@ cleanup:
 }
 
 static UA_StatusCode
+storeCertificate_file(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *cert)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+static UA_StatusCode
+loadPrivateKey_file(UA_PKIStore *pkiStore, const UA_NodeId certType, UA_ByteString *privateKey)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+
+static UA_StatusCode
+storePrivateKey_file(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *privateKey)
+{
+	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+}
+
+static UA_StatusCode
 setupPkiDir(char *directory, char *cwd, size_t cwdLen, char **out) {
     strncpy(&cwd[cwdLen], directory, PATH_MAX - cwdLen);
     *out = strndup(cwd, PATH_MAX - cwdLen);
@@ -188,9 +224,12 @@ setupPkiDir(char *directory, char *cwd, size_t cwdLen, char **out) {
 
 UA_StatusCode
 UA_PKIStore_File(UA_PKIStore *pkiStore, UA_NodeId *certificateGroupId) {
+
+	/* Check parameter */
     if(pkiStore == NULL || certificateGroupId == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
+
     memset(pkiStore, 0, sizeof(UA_PKIStore));
     char cwd[PATH_MAX];
     if(getcwd(cwd, PATH_MAX) == NULL) {
@@ -201,7 +240,13 @@ UA_PKIStore_File(UA_PKIStore *pkiStore, UA_NodeId *certificateGroupId) {
     FilePKIStore *context = (FilePKIStore *)UA_malloc(sizeof(FilePKIStore));
     pkiStore->loadTrustList = loadTrustList_file;
     pkiStore->storeTrustList = storeTrustList_file;
+    pkiStore->loadRejectedList = loadRejectedList;
+    pkiStore->storeRejectedList = storeRejectedList;
+    pkiStore->appendRejectedList = appendRejectedList;
     pkiStore->loadCertificate = loadCertificate_file;
+    pkiStore->storeCertificate = storeCertificate_file;
+    pkiStore->loadPrivateKey = loadPrivateKey_file;
+    pkiStore->storePrivateKey = storePrivateKey_file;
     pkiStore->clear = clear_file;
     pkiStore->context = context;
 

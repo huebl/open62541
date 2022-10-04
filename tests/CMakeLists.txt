@@ -91,7 +91,8 @@ endif()
 if(UA_ENABLE_ENCRYPTION_MBEDTLS OR UA_ENABLE_PUBSUB_ENCRYPTION)
   list(INSERT test_plugin_sources 0
        ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.h
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.c)
+       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.c
+       ${PROJECT_SOURCE_DIR}/plugins/crypto/certstore/ua_certstore_file.c)
 endif()
 
 if(UA_ENABLE_PUBSUB_ENCRYPTION)
@@ -416,6 +417,8 @@ if(UA_ENABLE_ENCRYPTION)
     add_executable(check_client_encryption client/check_client_encryption.c $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-testplugins>)
     target_link_libraries(check_client_encryption ${LIBS})
     add_test_valgrind(client_encryption ${TESTS_BINARY_DIR}/check_client_encryption)
+    
+    ua_add_test(encryption/check_certstore_file.c)
 endif()
 
 if(UA_ENABLE_ENCRYPTION_MBEDTLS)
