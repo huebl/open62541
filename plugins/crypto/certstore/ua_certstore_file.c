@@ -14,6 +14,10 @@
 
 static UA_StatusCode
 readFileToByteString(const char *const path, UA_ByteString *data) {
+	if (path == NULL || data == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
     /* Open the file */
     FILE *fp = fopen(path, "rb");
     if(!fp) {
@@ -37,6 +41,51 @@ readFileToByteString(const char *const path, UA_ByteString *data) {
     return UA_STATUSCODE_GOOD;
 }
 
+static UA_StatusCode
+writeByteStringToFile(const char *const path, const UA_ByteString *data) {
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+	/* Open the file */
+    FILE *fp = fopen(path, "wb");
+    if(!fp) {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Write byte string to file */
+    size_t len = fwrite(data->data, sizeof(UA_Byte), data->length * sizeof(UA_Byte), fp);
+    if(len != data->length) {
+    	retval = UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    fclose(fp);
+    return retval;
+}
+
+static UA_StatusCode
+removeAllFilesFromDir(const char *const path) {
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+	/* Check parameter */
+	if (path == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/* remove all regular files from directory */
+	DIR *dir = opendir(path);
+	if(dir) {
+        struct dirent *dirent;
+	    while((dirent = readdir(dir)) != NULL) {
+	        if(dirent->d_type == DT_REG) {
+	        	char file_name[FILENAME_MAX];
+	            snprintf(file_name, FILENAME_MAX, "%s/%s", path, (char*)dirent->d_name);
+	            remove(file_name);
+	        }
+	    }
+	    closedir(dir);
+	}
+	return retval;
+}
+
 static int
 mkpath(char *dir, mode_t mode) {
     struct stat sb;
@@ -50,6 +99,16 @@ mkpath(char *dir, mode_t mode) {
     return mkdir(dir, mode);
 }
 
+static UA_StatusCode
+setupPkiDir(char *directory, char *cwd, size_t cwdLen, char **out) {
+    strncpy(&cwd[cwdLen], directory, PATH_MAX - cwdLen);
+    *out = strndup(cwd, PATH_MAX - cwdLen);
+    if(*out == NULL)
+        return UA_STATUSCODE_BADINTERNALERROR;
+    mkpath(*out, 0777);
+    return UA_STATUSCODE_GOOD;
+}
+
 typedef struct FilePKIStore {
     char *trustedCertDir;
     size_t trustedCertDirLen;
@@ -61,6 +120,8 @@ typedef struct FilePKIStore {
     size_t trustedIssuerCrlDirLen;
     char *certificateDir;
     size_t certificateDirLen;
+    char *rejectedCertDir;
+    size_t rejectedCertDirLen;
     char *keyDir;
     size_t keyDirLen;
 } FilePKIStore;
@@ -68,26 +129,107 @@ typedef struct FilePKIStore {
 static UA_StatusCode
 loadList(UA_ByteString **list, size_t *listSize, const char *listPath) {
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
-    size_t numCerts = 0;
 
+    /* Determine number of certificates */
+    size_t numCerts = 0;
     DIR *dir = opendir(listPath);
     if(dir) {
         struct dirent *dirent;
         while((dirent = readdir(dir)) != NULL) {
             if(dirent->d_type == DT_REG) {
-                // TODO: Load cert file
+            	numCerts++;
             }
         }
         closedir(dir);
     }
+
     retval = UA_Array_resize((void **)list, listSize, numCerts, &UA_TYPES[UA_TYPES_BYTESTRING]);
+    if (retval != UA_STATUSCODE_GOOD) {
+    	return retval;
+    }
+
+    /* Read files from directory */
+    size_t numActCerts = 0;
+    dir = opendir(listPath);
+    if(dir) {
+        struct dirent *dirent;
+        while((dirent = readdir(dir)) != NULL) {
+            if(dirent->d_type == DT_REG) {
+
+            	if (numActCerts < numCerts) {
+            		/* Create filename to load */
+            		char filename[FILENAME_MAX];
+            		if(snprintf(filename, FILENAME_MAX, "%s/%s", listPath, dirent->d_name) < 0) {
+            			closedir(dir);
+            			return UA_STATUSCODE_BADINTERNALERROR;
+            		}
+
+            		/* Load data from file */
+            		retval = readFileToByteString(filename, &((*list)[numActCerts]));
+            		if (retval != UA_STATUSCODE_GOOD) {
+            			closedir(dir);
+            			return retval;
+            		}
+            	}
+
+                numActCerts++;
+            }
+        }
+        closedir(dir);
+    }
+
+    return retval;
+}
+
+static UA_StatusCode
+storeList(const UA_ByteString *list, size_t listSize, const char *listPath) {
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    /* Check parameter */
+    if (listPath == NULL) {
+    	return UA_STATUSCODE_BADINTERNALERROR;
+    }
+    if (listSize > 0 && list == NULL) {
+    	return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* remove existing files in directory */
+    retval = removeAllFilesFromDir(listPath);
+    if (retval != UA_STATUSCODE_GOOD) {
+    	return retval;
+    }
+
+    /* Store new byte strings */
+    size_t idx = 0;
+    for (idx = 0; idx < listSize; idx++) {
+    	/* FIXME: TODO create thumbprint */
+
+       	/* Create filename to load */
+        char filename[FILENAME_MAX];
+        if(snprintf(filename, FILENAME_MAX, "%s/%s%ld", listPath, "file", idx) < 0) {
+            return UA_STATUSCODE_BADINTERNALERROR;
+        }
+
+        /* Store data in file */
+        retval = writeByteStringToFile(filename, &list[idx]);
+        if (retval != UA_STATUSCODE_GOOD) {
+        	return retval;
+        }
+    }
+
     return retval;
 }
 
 static UA_StatusCode
 loadTrustList_file(UA_PKIStore *certStore, UA_TrustListDataType *trustList) {
-    FilePKIStore *context = (FilePKIStore *)certStore->context;
+    /* Check parameter */
+	if (certStore == NULL || trustList == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	FilePKIStore *context = (FilePKIStore *)certStore->context;
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
     if(trustList->specifiedLists & UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES) {
         retval = loadList(&trustList->trustedCertificates, &trustList->trustedCertificatesSize,
                           context->trustedCertDir);
@@ -119,51 +261,92 @@ loadTrustList_file(UA_PKIStore *certStore, UA_TrustListDataType *trustList) {
     return retval;
 }
 
-static UA_StatusCode
-clear_file(UA_PKIStore *certStore) {
-    FilePKIStore *context = (FilePKIStore *)certStore->context;
-    if(context) {
-        if(context->trustedCertDir)
-            UA_free(context->trustedCertDir);
-        if(context->trustedCrlDir)
-            UA_free(context->trustedCrlDir);
-        if(context->trustedIssuerCertDir)
-            UA_free(context->trustedIssuerCertDir);
-        if(context->trustedIssuerCrlDir)
-            UA_free(context->trustedIssuerCrlDir);
-        if(context->certificateDir)
-            UA_free(context->certificateDir);
-        if(context->keyDir)
-            UA_free(context->keyDir);
-        UA_free(context);
-    }
-
-    UA_NodeId_clear(&certStore->certificateGroupId);
-
-    return UA_STATUSCODE_GOOD;
-}
 
 static UA_StatusCode
 storeTrustList_file(UA_PKIStore *certStore, const UA_TrustListDataType *trustList) {
-    return UA_STATUSCODE_BADNOTIMPLEMENTED;
+	/* Check parameter */
+	if (certStore == NULL || trustList == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+    FilePKIStore *context = (FilePKIStore *)certStore->context;
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    if(trustList->specifiedLists & UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES) {
+        retval = storeList(trustList->trustedCertificates, trustList->trustedCertificatesSize,
+                          context->trustedCertDir);
+        if(retval != UA_STATUSCODE_GOOD) {
+            return retval;
+        }
+    }
+    if(trustList->specifiedLists & UA_TRUSTLISTMASKS_TRUSTEDCRLS) {
+        retval = storeList(trustList->trustedCrls, trustList->trustedCrlsSize,
+                          context->trustedCrlDir);
+        if(retval != UA_STATUSCODE_GOOD) {
+            return retval;
+        }
+    }
+    if(trustList->specifiedLists & UA_TRUSTLISTMASKS_ISSUERCERTIFICATES) {
+        retval = storeList(trustList->issuerCertificates, trustList->issuerCertificatesSize,
+                          context->trustedIssuerCertDir);
+        if(retval != UA_STATUSCODE_GOOD) {
+            return retval;
+        }
+    }
+    if(trustList->specifiedLists & UA_TRUSTLISTMASKS_ISSUERCRLS) {
+        retval = storeList(trustList->issuerCrls, trustList->issuerCrlsSize,
+                          context->trustedIssuerCrlDir);
+        if(retval != UA_STATUSCODE_GOOD) {
+            return retval;
+        }
+    }
+    return retval;
 }
 
 static UA_StatusCode
-loadRejectedList(UA_PKIStore *pkiStore, UA_ByteString **rejectedList, size_t *rejectedListSize)
+loadRejectedList(UA_PKIStore *certStore, UA_ByteString **rejectedList, size_t *rejectedListSize)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+    /* Check parameter */
+	if (certStore == NULL || rejectedList == NULL || rejectedListSize == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+    FilePKIStore *context = (FilePKIStore *)certStore->context;
+
+    return loadList(rejectedList, rejectedListSize, context->rejectedCertDir);
 }
 
 static UA_StatusCode
-storeRejectedList(UA_PKIStore *pkiStore, const UA_ByteString *rejectedList, size_t rejectedListSize)
+storeRejectedList(UA_PKIStore *certStore, const UA_ByteString *rejectedList, size_t rejectedListSize)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+    /* Check parameter */
+	if (certStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	FilePKIStore *context = (FilePKIStore *)certStore->context;
+
+	return storeList(rejectedList, rejectedListSize, context->rejectedCertDir);
 }
 
 static UA_StatusCode
-appendRejectedList(UA_PKIStore *pkiStore, const UA_ByteString *certificate)
+appendRejectedList(UA_PKIStore *certStore, const UA_ByteString *certificate)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+    /* Check parameter */
+	if (certStore == NULL || certificate == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	FilePKIStore *context = (FilePKIStore *)certStore->context;
+
+  	/* Create filename to load */
+    char filename[FILENAME_MAX];
+    if(snprintf(filename, FILENAME_MAX, "%s/%s", context->rejectedCertDir, "file") < 0) {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    /* Store data in file */
+    return writeByteStringToFile(filename, certificate);
 }
 
 static UA_StatusCode
@@ -196,29 +379,114 @@ cleanup:
 static UA_StatusCode
 storeCertificate_file(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *cert)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+    if(pkiStore == NULL || cert == NULL || cert->length == 0) {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    UA_String nodeIdStr;
+    UA_String_init(&nodeIdStr);
+    UA_NodeId_print(&certType, &nodeIdStr);
+
+    FilePKIStore *context = (FilePKIStore *)pkiStore->context;
+    char filename[FILENAME_MAX];
+    if(snprintf(filename, FILENAME_MAX, "%s/%s", context->certificateDir, nodeIdStr.data) < 0) {
+        retval = UA_STATUSCODE_BADINTERNALERROR;
+        goto cleanup;
+    }
+
+    retval = writeByteStringToFile(filename, cert);
+
+cleanup:
+
+    UA_String_clear(&nodeIdStr);
+    return retval;
 }
 
 static UA_StatusCode
 loadPrivateKey_file(UA_PKIStore *pkiStore, const UA_NodeId certType, UA_ByteString *privateKey)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+    if(pkiStore == NULL || privateKey == NULL) {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+    UA_ByteString_clear(privateKey);
+    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+    UA_String nodeIdStr;
+    UA_String_init(&nodeIdStr);
+    UA_NodeId_print(&certType, &nodeIdStr);
+
+    FilePKIStore *context = (FilePKIStore *)pkiStore->context;
+    char filename[FILENAME_MAX];
+    if(snprintf(filename, FILENAME_MAX, "%s/%s", context->keyDir, nodeIdStr.data) < 0) {
+        retval = UA_STATUSCODE_BADINTERNALERROR;
+        goto cleanup;
+    }
+
+    retval = readFileToByteString(filename, privateKey);
+
+cleanup:
+
+    UA_String_clear(&nodeIdStr);
+    return retval;
 }
 
 
 static UA_StatusCode
 storePrivateKey_file(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *privateKey)
 {
-	return UA_STATUSCODE_BADNOTIMPLEMENTED;
+	   if(pkiStore == NULL || privateKey == NULL || privateKey->length == 0) {
+	        return UA_STATUSCODE_BADINTERNALERROR;
+	    }
+	    UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+	    UA_String nodeIdStr;
+	    UA_String_init(&nodeIdStr);
+	    UA_NodeId_print(&certType, &nodeIdStr);
+
+	    FilePKIStore *context = (FilePKIStore *)pkiStore->context;
+	    char filename[FILENAME_MAX];
+	    if(snprintf(filename, FILENAME_MAX, "%s/%s", context->keyDir, nodeIdStr.data) < 0) {
+	        retval = UA_STATUSCODE_BADINTERNALERROR;
+	        goto cleanup;
+	    }
+
+	    retval = writeByteStringToFile(filename, privateKey);
+
+	cleanup:
+
+	    UA_String_clear(&nodeIdStr);
+	    return retval;
 }
 
 static UA_StatusCode
-setupPkiDir(char *directory, char *cwd, size_t cwdLen, char **out) {
-    strncpy(&cwd[cwdLen], directory, PATH_MAX - cwdLen);
-    *out = strndup(cwd, PATH_MAX - cwdLen);
-    if(*out == NULL)
-        return UA_STATUSCODE_BADINTERNALERROR;
-    mkpath(*out, 0777);
+clear_file(UA_PKIStore *certStore) {
+	/* check parameter */
+	if (certStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+    FilePKIStore *context = (FilePKIStore *)certStore->context;
+    if(context) {
+        if(context->trustedCertDir)
+            UA_free(context->trustedCertDir);
+        if(context->trustedCrlDir)
+            UA_free(context->trustedCrlDir);
+        if(context->trustedIssuerCertDir)
+            UA_free(context->trustedIssuerCertDir);
+        if(context->trustedIssuerCrlDir)
+            UA_free(context->trustedIssuerCrlDir);
+        if(context->certificateDir)
+            UA_free(context->certificateDir);
+        if(context->rejectedCertDir)
+            UA_free(context->rejectedCertDir);
+        if(context->keyDir)
+            UA_free(context->keyDir);
+        UA_free(context);
+    }
+
+    UA_NodeId_clear(&certStore->certificateGroupId);
+
     return UA_STATUSCODE_GOOD;
 }
 
@@ -265,6 +533,7 @@ UA_PKIStore_File(UA_PKIStore *pkiStore, UA_NodeId *certificateGroupId) {
     retval |= setupPkiDir("/trusted/crls", cwd, cwdLen, &context->trustedCrlDir);
     retval |= setupPkiDir("/issuer/certs", cwd, cwdLen, &context->trustedIssuerCertDir);
     retval |= setupPkiDir("/issuer/crls", cwd, cwdLen, &context->trustedIssuerCrlDir);
+    retval |= setupPkiDir("/rejected/certs", cwd, cwdLen, &context->rejectedCertDir);
     retval |= setupPkiDir("/own/certs", cwd, cwdLen, &context->certificateDir);
     retval |= setupPkiDir("/own/keys", cwd, cwdLen, &context->keyDir);
     if(retval != UA_STATUSCODE_GOOD) {
