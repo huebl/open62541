@@ -474,42 +474,60 @@ UA_Server_updateCertificate(UA_Server *server,
     UA_CHECK(server && oldCertificate && newCertificate && newPrivateKey,
              return UA_STATUSCODE_BADINTERNALERROR);
 
-    // TODO: Do we need to close sessions and securechannels on certificate update?
-//    if(closeSessions) {
-//        session_list_entry *current;
-//        LIST_FOREACH(current, &server->sessions, pointers) {
-//            if(UA_ByteString_equal(oldCertificate,
-//                                    &current->session.header.channel->securityPolicy->localCertificate)) {
-//                UA_LOCK(&server->serviceMutex);
-//                UA_Server_removeSessionByToken(server, &current->session.header.authenticationToken,
-//                                               UA_DIAGNOSTICEVENT_CLOSE);
-//                UA_UNLOCK(&server->serviceMutex);
-//            }
-//        }
-//
-//    }
-//
-//    if(closeSecureChannels) {
-//        channel_entry *entry;
-//        TAILQ_FOREACH(entry, &server->channels, pointers) {
-//            if(UA_ByteString_equal(&entry->channel.securityPolicy->localCertificate, oldCertificate))
-//                UA_Server_closeSecureChannel(server, &entry->channel, UA_DIAGNOSTICEVENT_CLOSE);
-//        }
-//    }
+    /* close sessions on certificate update */
+    if(closeSessions) {
+        session_list_entry *current;
+        LIST_FOREACH(current, &server->sessions, pointers) {
+        	/* Load local certificate */
+        	UA_ByteString localCertificate;
+        	UA_PKIStore* pkiStore = current->session.header.channel->endpoint->pkiStore;
+        	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
 
-//    size_t i = 0;
-//    while(i < server->config.endpointsSize) {
-//        UA_EndpointDescription *ed = &server->config.endpoints[i];
-//        if(UA_ByteString_equal(&ed->serverCertificate, oldCertificate)) {
-//            UA_String_clear(&ed->serverCertificate);
-//            UA_String_copy(newCertificate, &ed->serverCertificate);
-//            UA_SecurityPolicy *sp = getSecurityPolicyByUri(server,
-//                            &server->config.endpoints[i].securityPolicyUri);
-//            UA_CHECK_MEM(sp, return UA_STATUSCODE_BADINTERNALERROR);
-//            sp->updateCertificateAndPrivateKey(sp, *newCertificate, *newPrivateKey);
-//        }
-//        i++;
-//    }
+        	/* Compare certificates and delete session if necessary */
+            if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
+                UA_LOCK(&server->serviceMutex);
+                UA_Server_removeSessionByToken(server, &current->session.header.authenticationToken,
+                                               UA_DIAGNOSTICEVENT_CLOSE);
+                UA_UNLOCK(&server->serviceMutex);
+            }
+            UA_ByteString_clear(&localCertificate);
+        }
+    }
+
+    /* Close securechannels on certificate update */
+    if(closeSecureChannels) {
+        channel_entry *entry;
+        TAILQ_FOREACH(entry, &server->channels, pointers) {
+        	/* Load local certificate */
+        	UA_ByteString localCertificate;
+        	UA_PKIStore* pkiStore = entry->channel.endpoint->pkiStore;
+        	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
+
+        	/* Compare certificates and delete secure channel if necessary */
+        	if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
+        		shutdownServerSecureChannel(server, &entry->channel, UA_DIAGNOSTICEVENT_CLOSE);
+            }
+            UA_ByteString_clear(&localCertificate);
+        }
+    }
+
+    /* update certificate and private key */
+    for (size_t idx = 0; idx < server->config.pkiStoresSize; idx++) {
+    	UA_PKIStore* pkiStore = &server->config.pkiStores[idx];
+
+    	/* Load local certificate */
+    	UA_ByteString localCertificate;
+    	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
+
+       	/* update certificate and private key */
+        if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
+        	pkiStore->storeCertificate(pkiStore, pkiStore->certificateGroupId, newCertificate);
+        	pkiStore->storePrivateKey(pkiStore, pkiStore->certificateGroupId, newPrivateKey);
+        }
+
+    	UA_ByteString_clear(&localCertificate);
+    }
+
     return UA_STATUSCODE_GOOD;
 }
 
