@@ -33,12 +33,14 @@ clientHouseKeeping(UA_Client *client, void *_);
 
 UA_Client *
 UA_Client_newWithConfig(const UA_ClientConfig *config) {
-    if(!config)
-        return NULL;
+	UA_CHECK_MEM(config, return NULL);
+
     UA_Client *client = (UA_Client*)UA_malloc(sizeof(UA_Client));
-    if(!client)
+    if(!client) {
         return NULL;
+    }
     memset(client, 0, sizeof(UA_Client));
+
     client->config = *config;
     /* Fix up known logger pointers now that the config has "moved" into the
      * client struct */

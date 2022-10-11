@@ -176,6 +176,7 @@ makeThumbprint_testing(const UA_SecurityPolicy *securityPolicy,
 
 static UA_StatusCode
 compareThumbprint_testing(const UA_SecurityPolicy *securityPolicy,
+	                   	  UA_PKIStore *pkiStore,
                           const UA_ByteString *certificateThumbprint) {
     return UA_STATUSCODE_GOOD;
 }
@@ -203,6 +204,7 @@ generateNonce_testing(void *policyContext,
 
 static UA_StatusCode
 newContext_testing(const UA_SecurityPolicy *securityPolicy,
+				   UA_PKIStore *pkiStore,
                    const UA_ByteString *remoteCertificate,
                    void **channelContext) {
     SET_CALLED(newContext);
@@ -323,7 +325,9 @@ compareCertificate_testing(const void *channelContext,
 
 static void
 policy_clear_testing(UA_SecurityPolicy *policy) {
+#if 0 /* FIXME: HUK */
     UA_ByteString_clear(&policy->localCertificate);
+#endif
 }
 
 UA_StatusCode
@@ -334,7 +338,9 @@ TestingPolicy(UA_SecurityPolicy *policy, UA_ByteString localCertificate,
     policy->policyContext = (void *)funcsCalled;
     policy->policyUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#Testing");
     policy->logger = UA_Log_Stdout;
+#if 0 /* FIXME: HUK */
     UA_ByteString_copy(&localCertificate, &policy->localCertificate);
+#endif
 
     policy->asymmetricModule.makeCertificateThumbprint = makeThumbprint_testing;
     policy->asymmetricModule.compareCertificateThumbprint = compareThumbprint_testing;

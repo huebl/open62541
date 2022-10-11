@@ -29,6 +29,7 @@
 #include <open62541/plugin/securitypolicy.h>
 #include <open62541/plugin/certificate_manager.h>
 #include <open62541/plugin/certstore.h>
+#include <open62541/endpoint.h>
 
 #ifdef UA_ENABLE_PUBSUB
 #include <open62541/server_pubsub.h>
@@ -185,8 +186,12 @@ struct UA_ServerConfig {
     size_t securityPoliciesSize;
     UA_SecurityPolicy* securityPolicies;
 
+    /* One PKIStore corresponds to one certificate Group */
+    size_t pkiStoresSize;
+    UA_PKIStore *pkiStores;
+
     size_t endpointsSize;
-    UA_EndpointDescription *endpoints;
+    UA_Endpoint *endpoints;
 
     /* Only allow the following discovery services to be executed on a
      * SecureChannel with SecurityPolicyNone: GetEndpointsRequest,

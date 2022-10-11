@@ -15,11 +15,12 @@
 #include <open62541/types.h>
 #include <open62541/plugin/log.h>
 #include <open62541/plugin/securitypolicy.h>
-#include <open62541/plugin/eventloop.h>
 #include <open62541/transport_generated.h>
 
 #include "open62541_queue.h"
 #include "ua_util_internal.h"
+#include "ua_connection_internal.h"
+#include <open62541/endpoint.h>
 
 _UA_BEGIN_DECLS
 
@@ -117,8 +118,11 @@ struct UA_SecureChannel {
                                                * See the renewState. */
 
     /* The endpoint and context of the channel */
-    const UA_SecurityPolicy *securityPolicy;
+    const UA_Endpoint **endpointCandidates;
+    size_t endpointCandidatesSize;
+    const UA_Endpoint *endpoint;
     void *channelContext; /* For interaction with the security policy */
+    UA_Connection *connection;
 
     /* Asymmetric encryption info */
     UA_ByteString remoteCertificate;
@@ -173,9 +177,7 @@ UA_SecureChannel_processHELACK(UA_SecureChannel *channel,
                                const UA_TcpAcknowledgeMessage *remoteConfig);
 
 UA_StatusCode
-UA_SecureChannel_setSecurityPolicy(UA_SecureChannel *channel,
-                                   const UA_SecurityPolicy *securityPolicy,
-                                   const UA_ByteString *remoteCertificate);
+UA_SecureChannel_setEndpoint(UA_SecureChannel *channel, const UA_Endpoint *endpoint);
 
 UA_Boolean
 UA_SecureChannel_isConnected(UA_SecureChannel *channel);

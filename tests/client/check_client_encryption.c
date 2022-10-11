@@ -48,19 +48,13 @@ static void setup(void) {
     privateKey.length = KEY_DER_LENGTH;
     privateKey.data = KEY_DER_DATA;
 
-    size_t trustListSize = 0;
-    UA_ByteString *trustList = NULL;
-    size_t issuerListSize = 0;
-    UA_ByteString *issuerList = NULL;
-    UA_ByteString *revocationList = NULL;
-    size_t revocationListSize = 0;
+    UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
 
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
-    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, &certificate, &privateKey,
-                                                   trustList, trustListSize,
-                                                   issuerList, issuerListSize,
-                                                   revocationList, revocationListSize);
+    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+    config->pkiStores->storeCertificate(config->pkiStores, certType, &certificate); /* FIXME: HUK */
+    config->pkiStores->storePrivateKey(config->pkiStores, certType, &privateKey); /* FIXME: HUK */
 
     config->certificateVerification.clear(&config->certificateVerification);
     UA_CertificateVerification_AcceptAll(&config->certificateVerification);

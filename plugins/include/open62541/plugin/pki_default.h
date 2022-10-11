@@ -22,13 +22,7 @@ UA_CertificateManager_AcceptAll(UA_CertificateManager *cv);
 /* Accept certificates based on a trust-list and a revocation-list. Based on
  * mbedTLS. */
 UA_EXPORT UA_StatusCode
-UA_CertificateManager_Trustlist(UA_CertificateManager *cv,
-                                const UA_ByteString *certificateTrustList,
-                                size_t certificateTrustListSize,
-                                const UA_ByteString *certificateIssuerList,
-                                size_t certificateIssuerListSize,
-                                const UA_ByteString *certificateRevocationList,
-                                size_t certificateRevocationListSize);
+UA_CertificateManager_Trustlist(UA_CertificateManager *cv);
 
 #ifdef __linux__ /* Linux only so far */
 
@@ -51,6 +45,7 @@ UA_CertificateManager_CertFolders(UA_CertificateManager *certificateManager,
 /* Initialize the Certificate Manager, internal */
 UA_EXPORT UA_StatusCode
 UA_CertificateManager_create(UA_CertificateManager *certificateManager,
+							UA_PKIStore *pkiStore,
                             const UA_ByteString *certificate,
                             const UA_ByteString *privateKey);
 

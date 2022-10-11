@@ -25,6 +25,7 @@
 #include <open62541/plugin/network.h>
 #include <open62541/plugin/eventloop.h>
 #include <open62541/plugin/securitypolicy.h>
+#include <open62541/endpoint.h>
 
 _UA_BEGIN_DECLS
 
@@ -140,6 +141,13 @@ typedef struct {
     /* Available SecurityPolicies */
     size_t securityPoliciesSize;
     UA_SecurityPolicy *securityPolicies;
+
+    /* One PKIStore corresponds to one certificate Group */
+    size_t pkiStoresSize;
+    UA_PKIStore *pkiStores;
+
+    size_t endpointsSize;
+    UA_Endpoint *endpoints;
 
     /* Certificate Verification Plugin */
     UA_CertificateManager certificateManager;

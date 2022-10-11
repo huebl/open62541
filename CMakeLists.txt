@@ -964,6 +964,7 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h
                      ${historizing_exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/open62541/server_pubsub.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/server.h
+                     ${PROJECT_SOURCE_DIR}/include/open62541/endpoint.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_subscriptions.h
@@ -1005,6 +1006,7 @@ set(lib_sources ${PROJECT_SOURCE_DIR}/src/ua_types.c
                 ${PROJECT_SOURCE_DIR}/src/ua_securechannel_crypto.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_session.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_nodes.c
+                ${PROJECT_SOURCE_DIR}/src/server/endpoint.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_ns0.c
                 ${PROJECT_SOURCE_DIR}/src/server/ua_server_ns0_diagnostics.c

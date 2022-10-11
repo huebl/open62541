@@ -32,6 +32,7 @@ UA_ByteString dummyCertificate =
     UA_BYTESTRING_STATIC("DUMMY CERTIFICATE DUMMY CERTIFICATE DUMMY CERTIFICATE");
 UA_SecurityPolicy dummyPolicy;
 UA_ByteString sentData;
+UA_Endpoint* endpoint = NULL; /* FIXME: HUK - muss gesetzt werden*/
 
 static funcs_called fCalled;
 static key_sizes keySizes;
@@ -41,7 +42,7 @@ setup_secureChannel(void) {
     TestingPolicy(&dummyPolicy, dummyCertificate, &fCalled, &keySizes);
     UA_SecureChannel_init(&testChannel);
     testChannel.config = UA_ConnectionConfig_default;
-    UA_SecureChannel_setSecurityPolicy(&testChannel, &dummyPolicy, &dummyCertificate);
+    UA_SecureChannel_setEndpoint(&testChannel, endpoint);
 
     testChannel.connectionManager = &testConnectionManagerTCP;
     testChannel.state = UA_SECURECHANNELSTATE_OPEN;
@@ -95,14 +96,14 @@ START_TEST(SecureChannel_initAndDelete) {
     UA_SecureChannel channel;
     UA_SecureChannel_init(&channel);
     channel.config = UA_ConnectionConfig_default;
-    retval = UA_SecureChannel_setSecurityPolicy(&channel, &dummyPolicy, &dummyCertificate);
+    retval = UA_SecureChannel_setEndpoint(&channel, endpoint);
 
     ck_assert_msg(retval == UA_STATUSCODE_GOOD, "Expected StatusCode to be good");
     ck_assert_msg(channel.state == UA_SECURECHANNELSTATE_FRESH, "Expected state to be new/fresh");
     ck_assert_msg(fCalled.newContext, "Expected newContext to have been called");
     ck_assert_msg(fCalled.makeCertificateThumbprint,
                   "Expected makeCertificateThumbprint to have been called");
-    ck_assert_msg(channel.securityPolicy == &dummyPolicy, "SecurityPolicy not set correctly");
+    ck_assert_msg(channel.endpoint->securityPolicy == &dummyPolicy, "SecurityPolicy not set correctly");
 
     UA_SecureChannel_clear(&channel);
     ck_assert_msg(fCalled.deleteContext, "Expected deleteContext to have been called");
@@ -221,7 +222,7 @@ START_TEST(SecureChannel_sendAsymmetricOPNMessage_sentDataIsValid) {
     retval = UA_decodeBinaryInternal(&sentData, &offset, &asymSecurityHeader, &UA_TRANSPORT[UA_TRANSPORT_ASYMMETRICALGORITHMSECURITYHEADER], NULL);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
-    ck_assert_msg(UA_ByteString_equal(&testChannel.securityPolicy->policyUri,
+    ck_assert_msg(UA_ByteString_equal(&testChannel.endpoint->securityPolicy->policyUri,
                                       &asymSecurityHeader.securityPolicyUri),
                   "Expected securityPolicyUri to be equal to the one used by the secureChannel");
 
@@ -307,7 +308,7 @@ START_TEST(Securechannel_sendAsymmetricOPNMessage_extraPaddingPresentWhenKeyLarg
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_msg(UA_ByteString_equal(&dummyCertificate, &asymSecurityHeader.senderCertificate),
                   "Expected the certificate to be equal to the one used  by the secureChannel");
-    ck_assert_msg(UA_ByteString_equal(&testChannel.securityPolicy->policyUri,
+    ck_assert_msg(UA_ByteString_equal(&testChannel.endpoint->securityPolicy->policyUri,
                                       &asymSecurityHeader.securityPolicyUri),
                   "Expected securityPolicyUri to be equal to the one used by the secureChannel");
     UA_ByteString thumbPrint = {20, testChannel.remoteCertificateThumbprint};
@@ -340,7 +341,7 @@ START_TEST(Securechannel_sendAsymmetricOPNMessage_extraPaddingPresentWhenKeyLarg
     UA_Byte paddingByte = sentData.data[sentData.length - keySizes.asym_lcl_sig_size - 1];
     size_t paddingSize = (size_t)paddingByte;
     UA_Boolean extraPadding =
-        (testChannel.securityPolicy->asymmetricModule.cryptoModule.encryptionAlgorithm.
+        (testChannel.endpoint->securityPolicy->asymmetricModule.cryptoModule.encryptionAlgorithm.
          getRemoteKeyLength(testChannel.channelContext) > 2048);
     UA_Byte extraPaddingByte = 0;
     if(extraPadding) {

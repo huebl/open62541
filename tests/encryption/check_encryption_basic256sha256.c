@@ -48,13 +48,7 @@ static void setup(void) {
     privateKey.length = KEY_DER_LENGTH;
     privateKey.data = KEY_DER_DATA;
 
-    /* Load the trustlist */
-    size_t trustListSize = 0;
-    UA_ByteString *trustList = NULL;
-
-    /* Load the issuerList */
-    size_t issuerListSize = 0;
-    UA_ByteString *issuerList = NULL;
+    UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
 
     /* TODO test trustList
     if(argc > 3)
@@ -64,26 +58,16 @@ static void setup(void) {
         trustList[i] = loadFile(argv[i+3]);
     */
 
-    /* Loading of a revocation list currently unsupported */
-    UA_ByteString *revocationList = NULL;
-    size_t revocationListSize = 0;
-
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
-    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, &certificate, &privateKey,
-                                                   trustList, trustListSize,
-                                                   issuerList, issuerListSize,
-                                                   revocationList, revocationListSize);
-    config->certificateVerification.clear(&config->certificateVerification);
-    UA_CertificateVerification_AcceptAll(&config->certificateVerification);
+    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+    config->pkiStores->storeCertificate(config->pkiStores, certType, &certificate); /* FIXME: HUK */
+    config->pkiStores->storePrivateKey(config->pkiStores, certType, &privateKey); /* FIXME: HUK */
 
     /* Set the ApplicationUri used in the certificate */
     UA_String_clear(&config->applicationDescription.applicationUri);
     config->applicationDescription.applicationUri =
         UA_STRING_ALLOC("urn:unconfigured:application");
-
-    for(size_t i = 0; i < trustListSize; i++)
-        UA_ByteString_clear(&trustList[i]);
 
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);

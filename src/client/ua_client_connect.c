@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- *    Copyright 2017-2022 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
+ *    Copyright 2017-2020 (c) Fraunhofer IOSB (Author: Julius Pfrommer)
  *    Copyright 2017-2019 (c) Fraunhofer IOSB (Author: Mark Giraud)
  */
 
@@ -50,7 +50,7 @@ signActivateSessionRequest(UA_Client *client, UA_SecureChannel *channel,
        channel->securityMode != UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
         return UA_STATUSCODE_GOOD;
 
-    const UA_SecurityPolicy *sp = channel->securityPolicy;
+    const UA_SecurityPolicy *sp = channel->endpoint->securityPolicy;
     UA_SignatureData *sd = &request->clientSignature;
 
     /* Prepare the signature */
@@ -123,7 +123,7 @@ encryptUserIdentityToken(UA_Client *client, const UA_String *userTokenSecurityPo
 
     void *channelContext;
     UA_StatusCode retval = sp->channelModule.
-        newContext(sp, &client->config.endpoint.serverCertificate, &channelContext);
+        newContext(sp, client->channel.endpoint->pkiStore, &client->config.endpoint.serverCertificate, &channelContext);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_NETWORK,
                        "Could not instantiate the SecurityPolicy for the UserToken");
@@ -198,20 +198,22 @@ checkCreateSessionSignature(UA_Client *client, const UA_SecureChannel *channel,
        channel->securityMode != UA_MESSAGESECURITYMODE_SIGNANDENCRYPT)
         return UA_STATUSCODE_GOOD;
 
-    if(!channel->securityPolicy)
+    if(!channel->endpoint)
         return UA_STATUSCODE_BADINTERNALERROR;
 
-    const UA_SecurityPolicy *sp = channel->securityPolicy;
-    const UA_ByteString *lc = &sp->localCertificate;
+    const UA_SecurityPolicy *sp = channel->endpoint->securityPolicy;
+    UA_ByteString localCertificate;
+    UA_ByteString_init(&localCertificate);
+    sp->getLocalCertificate(sp, channel->endpoint->pkiStore, &localCertificate);
 
-    size_t dataToVerifySize = lc->length + client->localNonce.length;
+    size_t dataToVerifySize = localCertificate.length + client->localNonce.length;
     UA_ByteString dataToVerify = UA_BYTESTRING_NULL;
     UA_StatusCode retval = UA_ByteString_allocBuffer(&dataToVerify, dataToVerifySize);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
-    memcpy(dataToVerify.data, lc->data, lc->length);
-    memcpy(dataToVerify.data + lc->length,
+    memcpy(dataToVerify.data, localCertificate.data, localCertificate.length);
+    memcpy(dataToVerify.data + localCertificate.length,
            client->localNonce.data, client->localNonce.length);
 
     retval = sp->certificateSigningAlgorithm.verify(channel->channelContext, &dataToVerify,
@@ -419,8 +421,8 @@ processOPNResponse(UA_Client *client, const UA_ByteString *message) {
         UA_LOG_INFO_CHANNEL(&client->config.logger, &client->channel,
                             "SecureChannel opened with SecurityPolicy %.*s "
                             "and a revised lifetime of %.2fs",
-                            (int)client->channel.securityPolicy->policyUri.length,
-                            client->channel.securityPolicy->policyUri.data, lifetime);
+                            (int)client->channel.endpoint->securityPolicy->policyUri.length,
+                            client->channel.endpoint->securityPolicy->policyUri.data, lifetime);
     }
 
     client->channel.state = UA_SECURECHANNELSTATE_OPEN;
@@ -585,7 +587,7 @@ activateSessionAsync(UA_Client *client) {
 
 #ifdef UA_ENABLE_ENCRYPTION
     /* Encrypt the UserIdentityToken */
-    const UA_String *userTokenPolicy = &client->channel.securityPolicy->policyUri;
+    const UA_String *userTokenPolicy = &client->channel.endpoint->securityPolicy->policyUri;
     if(client->config.userTokenPolicy.securityPolicyUri.length > 0)
         userTokenPolicy = &client->config.userTokenPolicy.securityPolicyUri;
     retval |= encryptUserIdentityToken(client, userTokenPolicy, &request.userIdentityToken);
@@ -808,7 +810,7 @@ responseGetEndpoints(UA_Client *client, void *userdata,
     /* Close the SecureChannel if a different SecurityPolicy is defined by the Endpoint */
     if(client->config.endpoint.securityMode != client->channel.securityMode ||
        !UA_String_equal(&client->config.endpoint.securityPolicyUri,
-                        &client->channel.securityPolicy->policyUri))
+                        &client->channel.endpoint->securityPolicy->policyUri))
         closeSecureChannel(client);
     UA_UNLOCK(&client->clientMutex);
 }
@@ -899,8 +901,8 @@ createSessionAsync(UA_Client *client) {
             if(res != UA_STATUSCODE_GOOD)
                 return res;
         }
-        res = client->channel.securityPolicy->symmetricModule.
-                 generateNonce(client->channel.securityPolicy->policyContext,
+        res = client->channel.endpoint->securityPolicy->symmetricModule.
+                 generateNonce(client->channel.endpoint->securityPolicy->policyContext,
                                &client->localNonce);
         if(res != UA_STATUSCODE_GOOD)
             return res;
@@ -919,7 +921,9 @@ createSessionAsync(UA_Client *client) {
     request.clientDescription = client->config.clientDescription;
     if(client->channel.securityMode == UA_MESSAGESECURITYMODE_SIGN ||
        client->channel.securityMode == UA_MESSAGESECURITYMODE_SIGNANDENCRYPT) {
-        request.clientCertificate = client->channel.securityPolicy->localCertificate;
+        client->channel.endpoint->securityPolicy->getLocalCertificate(client->channel.endpoint->securityPolicy,
+                                                                      client->channel.endpoint->pkiStore,
+                                                                      &request.clientCertificate);
     }
 
     res = __Client_AsyncServiceEx(client, &request,
@@ -941,13 +945,14 @@ createSessionAsync(UA_Client *client) {
 static void
 initSecurityPolicy(UA_Client *client) {
     /* Already initialized */
-    if(client->channel.securityPolicy)
+    if(client->channel.endpoint->securityPolicy)
         return;
 
     client->channel.securityMode = client->config.endpoint.securityMode;
 
     if(client->channel.securityMode == UA_MESSAGESECURITYMODE_INVALID)
         client->channel.securityMode = UA_MESSAGESECURITYMODE_NONE;
+    
     UA_SecurityPolicy *sp = NULL;
     if(client->config.endpoint.securityPolicyUri.length == 0) {
         sp = getSecurityPolicy(client,
@@ -959,8 +964,7 @@ initSecurityPolicy(UA_Client *client) {
     client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
     if(sp) {
         client->connectStatus =
-            UA_SecureChannel_setSecurityPolicy(&client->channel, sp,
-                                               &client->config.endpoint.serverCertificate);
+            UA_SecureChannel_setEndpoint(&client->channel, NULL); // TODO: Implement
     }
 }
 
@@ -1067,7 +1071,14 @@ verifyClientApplicationURI(UA_Client *client) {
 #if defined(UA_ENABLE_ENCRYPTION) && (UA_LOGLEVEL <= 400)
     for(size_t i = 0; i < client->config.securityPoliciesSize; i++) {
         UA_SecurityPolicy *sp = &client->config.securityPolicies[i];
-        if(!sp->localCertificate.data) {
+        
+        UA_ByteString localCertificate;
+        UA_ByteString_init(&localCertificate);
+        client->channel.endpoint->securityPolicy->getLocalCertificate(client->channel.endpoint->securityPolicy,
+                                                                      client->channel.endpoint->pkiStore,
+                                                                      &localCertificate);
+      
+        if(!localCertificate.data) {
                 UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                 "skip verifying ApplicationURI for the SecurityPolicy %.*s",
                 (int)sp->policyUri.length, sp->policyUri.data);
@@ -1077,8 +1088,10 @@ verifyClientApplicationURI(UA_Client *client) {
         UA_StatusCode retval =
             client->config.certificateManager.
                 verifyApplicationURI(&client->config.certificateManager,
-                                     &sp->localCertificate,
+                                     client->channel.endpoint->pkiStore,
+                                     &localCertificate,
                                      &client->config.clientDescription.applicationUri);
+        UA_ByteString_clear(&localCertificate);
 
         if(retval != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,

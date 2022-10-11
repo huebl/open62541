@@ -27,6 +27,7 @@ UA_EXPORT UA_StatusCode
 UA_AccessControl_default(UA_ServerConfig *config,
                          UA_Boolean allowAnonymous,
                          UA_CertificateManager *verifyX509,
+                         UA_PKIStore *pkiStore,
                          const UA_ByteString *userTokenPolicyUri,
                          size_t usernamePasswordLoginSize,
                          const UA_UsernamePasswordLogin *usernamePasswordLogin);

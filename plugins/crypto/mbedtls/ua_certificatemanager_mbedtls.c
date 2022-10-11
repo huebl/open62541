@@ -172,6 +172,7 @@ static void UA_CertificateManager_clear(UA_CertificateManager *cm) {
 /* Initialize the Certificate Manager */
 UA_StatusCode
 UA_CertificateManager_create(UA_CertificateManager *cm,
+		                    UA_PKIStore *pkiStore,
                             const UA_ByteString *certificate,
                             const UA_ByteString *privateKey) {
 
@@ -195,7 +196,12 @@ UA_CertificateManager_create(UA_CertificateManager *cm,
 
 	    /* Set private key */
 	    mbedtls_pk_init(&context->privateKey);
-	    if (UA_mbedTLS_LoadPrivateKey(privateKey, &context->privateKey, &context->entropy) != 0) {
+	    UA_StatusCode retval =
+	    	UA_mbedTLS_loadPrivateKey(pkiStore,
+	    			                  &context->entropy,
+									  pkiStore->certificateGroupId,
+	    			                  &context->privateKey);
+	    if (retval != 0) {
 	        return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 

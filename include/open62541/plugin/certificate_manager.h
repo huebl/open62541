@@ -65,10 +65,12 @@ struct UA_CertificateManager {
 
     /* Verify the certificate against the configured policies and trust chain. */
     UA_StatusCode (*verifyCertificate)(UA_CertificateManager *certificateManager,
+    	    	                       UA_PKIStore *pkiStore,
                                        const UA_ByteString *certificate);
 
     /* Verify that the certificate has the applicationURI in the subject name. */
     UA_StatusCode (*verifyApplicationURI)(UA_CertificateManager *certificateManager,
+    		                              UA_PKIStore *pkiStore,
                                           const UA_ByteString *certificate,
                                           const UA_String *applicationURI);
 
