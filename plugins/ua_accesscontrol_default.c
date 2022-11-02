@@ -125,7 +125,13 @@ activateSession_default(UA_Server *server, UA_AccessControl *ac,
         if(!UA_String_equal(&userToken->policyId, &certificate_policy))
             return UA_STATUSCODE_BADIDENTITYTOKENINVALID;
 
-        return context->verifyX509->verifyCertificate(context->verifyX509, context->pkiStore, &userToken->certificateData);
+        if(!context->verifyX509->verifyCertificate)
+            return UA_STATUSCODE_BADIDENTITYTOKENINVALID;
+
+        return context->verifyX509->
+            verifyCertificate(context->verifyX509,
+            				  context->pkiStore,
+                              &userToken->certificateData);
     }
 
     /* Unsupported token type */
@@ -323,7 +329,7 @@ UA_AccessControl_default(UA_ServerConfig *config,
     if(verifyX509 && pkiStore) {
         context->verifyX509 = verifyX509;
         context->pkiStore = pkiStore;
-        memset(verifyX509, 0, sizeof(UA_CertificateManager));
+        /* FIXME: HUK memset(verifyX509, 0, sizeof(UA_CertificateManager)); */
     } else {
         context->verifyX509 = NULL;
         UA_LOG_INFO(&config->logger, UA_LOGCATEGORY_SERVER,

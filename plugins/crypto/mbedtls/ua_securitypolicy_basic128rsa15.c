@@ -147,8 +147,9 @@ decrypt_rsa15_sp_basic128rsa15(ChannelContext_mbedtls *cc,
 #else
     size_t keylen = mbedtls_rsa_get_len(rsaContext);
 #endif
-    if(data->length % keylen != 0)
+    if(data->length % keylen != 0) {
         return UA_STATUSCODE_BADINTERNALERROR;
+    }
 
     size_t inOffset = 0;
     size_t outOffset = 0;
@@ -160,6 +161,7 @@ decrypt_rsa15_sp_basic128rsa15(ChannelContext_mbedtls *cc,
         int mbedErr = mbedtls_pk_decrypt(privateKey,
                                          data->data + inOffset, rsaContext->len,
                                          buf, &outLength, 512, NULL, NULL);
+        printf("mbedtls_pk_decrypt %d\n", mbedErr);
 #else
         int mbedErr = mbedtls_pk_decrypt(privateKey,
                                          data->data + inOffset, keylen,
@@ -589,6 +591,7 @@ UA_SecurityPolicy_Basic128Rsa15(UA_SecurityPolicy *policy,
     channelModule->compareCertificate = (UA_StatusCode (*)(const void *, const UA_ByteString *))
         channelContext_mbedtls_compareCertificate;
 
+    policy->getLocalCertificate = UA_mbedTLS_LoadLocalCertificate;
     policy->clear = clear_sp_basic128rsa15;
 
     UA_StatusCode res = policyContext_newContext_sp_basic128rsa15(policy);

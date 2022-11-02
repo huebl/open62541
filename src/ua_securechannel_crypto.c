@@ -202,9 +202,12 @@ prependHeadersAsym(UA_SecureChannel *const channel, UA_Byte *header_pos,
     UA_ByteString_clear(&asymHeader.senderCertificate);
     UA_CHECK_STATUS(retval, return retval);
 
+    /* Increase the sequence number in the channel */
+    channel->sendSequenceNumber++;
+
     UA_SequenceHeader seqHeader;
     seqHeader.requestId = requestId;
-    seqHeader.sequenceNumber++;
+    seqHeader.sequenceNumber = channel->sendSequenceNumber;
     retval = UA_encodeBinaryInternal(&seqHeader, &UA_TRANSPORT[UA_TRANSPORT_SEQUENCEHEADER],
                                      &header_pos, &buf_end, NULL, NULL);
     return retval;
@@ -446,6 +449,7 @@ decryptAndVerifyChunk(const UA_SecureChannel *channel,
                       const UA_SecurityPolicyCryptoModule *cryptoModule,
                       UA_MessageType messageType, UA_ByteString *chunk,
                       size_t offset) {
+
     /* Decrypt the chunk */
     UA_StatusCode res = UA_STATUSCODE_GOOD;
     if(channel->securityMode == UA_MESSAGESECURITYMODE_SIGNANDENCRYPT ||

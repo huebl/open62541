@@ -6,6 +6,7 @@
 #include <open62541/transport_generated_handling.h>
 #include <open62541/types_generated.h>
 #include <open62541/server_config_default.h>
+#include <open62541/plugin/certstore_default.h>
 
 #include "ua_securechannel.h"
 #include "ua_types_encoding_binary.h"
@@ -32,16 +33,66 @@ UA_ByteString dummyCertificate =
     UA_BYTESTRING_STATIC("DUMMY CERTIFICATE DUMMY CERTIFICATE DUMMY CERTIFICATE");
 UA_SecurityPolicy dummyPolicy;
 UA_ByteString sentData;
-UA_Endpoint* endpoint = NULL; /* FIXME: HUK - muss gesetzt werden*/
+UA_Endpoint* endpoint;
+UA_PKIStore* pkiStore;
 
 static funcs_called fCalled;
 static key_sizes keySizes;
+
+
+static void
+setup_pkiStore(void) {
+	/* Create PKI Store */
+    UA_NodeId certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+    pkiStore = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
+
+    /* Create File PKI Store */
+    UA_PKIStore_File(pkiStore, &certificateGroupId);
+}
+
+static void
+teardown_pkiStore(void) {
+	UA_free(pkiStore);
+	pkiStore = NULL;
+}
+
+static void
+setup_endpoint(void) {
+	setup_pkiStore();
+
+	UA_String serverUrl = UA_BYTESTRING("opc.tcp://127.0.0.1:4840");
+	UA_ApplicationDescription applicationDescription;
+
+	/* Create new endpoint */
+	endpoint = (UA_Endpoint *)UA_malloc(sizeof(UA_Endpoint));
+	UA_Endpoint_init(
+		endpoint,
+	    &serverUrl,
+	    pkiStore,
+		&dummyPolicy,
+	    true,
+	    true,
+	    true,
+	    applicationDescription,
+	    NULL,
+	    0);
+}
+
+
+static void
+teardown_endpoint(void) {
+	UA_free(endpoint);
+	endpoint = NULL;
+	teardown_pkiStore();
+}
+
 
 static void
 setup_secureChannel(void) {
     TestingPolicy(&dummyPolicy, dummyCertificate, &fCalled, &keySizes);
     UA_SecureChannel_init(&testChannel);
     testChannel.config = UA_ConnectionConfig_default;
+    setup_endpoint();
     UA_SecureChannel_setEndpoint(&testChannel, endpoint);
 
     testChannel.connectionManager = &testConnectionManagerTCP;
@@ -54,6 +105,7 @@ teardown_secureChannel(void) {
     UA_SecureChannel_clear(&testChannel);
     dummyPolicy.clear(&dummyPolicy);
     UA_ByteString_clear(&sentData);
+    teardown_endpoint();
 }
 
 static void
@@ -96,6 +148,7 @@ START_TEST(SecureChannel_initAndDelete) {
     UA_SecureChannel channel;
     UA_SecureChannel_init(&channel);
     channel.config = UA_ConnectionConfig_default;
+    setup_endpoint();
     retval = UA_SecureChannel_setEndpoint(&channel, endpoint);
 
     ck_assert_msg(retval == UA_STATUSCODE_GOOD, "Expected StatusCode to be good");
@@ -108,6 +161,7 @@ START_TEST(SecureChannel_initAndDelete) {
     UA_SecureChannel_clear(&channel);
     ck_assert_msg(fCalled.deleteContext, "Expected deleteContext to have been called");
 
+    teardown_endpoint();
     dummyPolicy.clear(&dummyPolicy);
 }END_TEST
 

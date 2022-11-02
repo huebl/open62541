@@ -379,7 +379,8 @@ UA_ServerConfig_addEndpoint(UA_ServerConfig *config,
     UA_assert(config->serverUrlsSize > 0);
     UA_Endpoint *tmp = (UA_Endpoint *)
         UA_realloc(config->endpoints,
-                   sizeof(UA_Endpoint) * ((config->serverUrlsSize - 1) + config->endpointsSize));
+                   sizeof(UA_Endpoint) * ((config->serverUrlsSize - 1) +
+                   sizeof(UA_Endpoint) * config->endpointsSize));
     if(!tmp) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
@@ -396,6 +397,8 @@ UA_ServerConfig_addEndpoint(UA_ServerConfig *config,
     if(policy == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
+
+    /* Lookup the pki store */
     UA_PKIStore *pkiStore = NULL;
     for(size_t i = 0; i < config->pkiStoresSize; ++i) {
         if(UA_NodeId_equal(certificateGroupId, &config->pkiStores[i].certificateGroupId)) {
@@ -418,8 +421,9 @@ UA_ServerConfig_addEndpoint(UA_ServerConfig *config,
                                                 config->applicationDescription,
                                                 config->accessControl.userTokenPolicies,
                                                 config->accessControl.userTokenPoliciesSize);
-        if(retval != UA_STATUSCODE_GOOD)
+        if(retval != UA_STATUSCODE_GOOD) {
             return retval;
+        }
         config->endpointsSize++;
     }
 
@@ -438,16 +442,20 @@ UA_ServerConfig_addAllEndpoints(UA_ServerConfig *config, const UA_NodeId *certif
                                             true,
                                             false,
                                             false);
-            if(retval != UA_STATUSCODE_GOOD)
+            if(retval != UA_STATUSCODE_GOOD) {
                 return retval;
-            config->endpointsSize++;
+            }
         } else {
-            UA_ServerConfig_addEndpoint(config,
-                                        &config->securityPolicies[i].policyUri,
-                                        certificateGroupId,
-                                        false,
-                                        true,
-                                        true);
+        	UA_StatusCode retval =
+                UA_ServerConfig_addEndpoint(config,
+                                            &config->securityPolicies[i].policyUri,
+                                            certificateGroupId,
+                                            false,
+                                            true,
+                                            true);
+            if(retval != UA_STATUSCODE_GOOD) {
+                 return retval;
+             }
         }
     }
 
@@ -668,16 +676,27 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
         return retval;
     }
 
+    /* Create file pki store */
+    UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
     conf->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
-
-    retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], NULL);
-    if(retval != UA_STATUSCODE_GOOD)
+    retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], &certType);
+    if(retval != UA_STATUSCODE_GOOD) {
+    	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
+    	    "Could not create default PKIStore with error code %s",
+    	    UA_StatusCode_name(retval));
         return retval;
+    }
 
-    retval = UA_CertificateManager_Trustlist(&conf->certificateManager);
-    if(retval != UA_STATUSCODE_GOOD)
+    /* Create certificate manager */
+    retval = UA_CertificateManager_create(&conf->certificateManager);
+    if(retval != UA_STATUSCODE_GOOD) {
+    	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
+    	    	    "Could not create certificate manager with error code %s",
+    	    	    UA_StatusCode_name(retval));
         return retval;
+    }
 
+    /* Add all security policies */
     retval = UA_ServerConfig_addAllSecurityPolicies(conf);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_clean(conf);
@@ -692,7 +711,7 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
         return retval;
     }
 
-    retval = UA_ServerConfig_addAllEndpoints(conf, NULL);
+    retval = UA_ServerConfig_addAllEndpoints(conf, &certType);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_clean(conf);
         return retval;
@@ -702,6 +721,141 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
 }
 
 #endif
+
+UA_EXPORT UA_PKIStore*
+UA_ServerConfig_PKIStore_getDefault(UA_Server* server)
+{
+	if (server == NULL) {
+		return NULL;
+	}
+
+	UA_ServerConfig* config = UA_Server_getConfig(server);
+	if (config == NULL || &config->pkiStores[0] == NULL) {
+		return NULL;
+	}
+
+	return &config->pkiStores[0];
+}
+
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_erase(UA_PKIStore *pkiStore)
+{
+	UA_StatusCode ret = UA_STATUSCODE_GOOD;
+
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/* Delete trust list data */
+	UA_TrustListDataType trustListData;
+	memset((char*)&trustListData, 0x00, sizeof(UA_TrustListDataType));
+	trustListData.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES ||
+			                       UA_TRUSTLISTMASKS_TRUSTEDCRLS ||
+								   UA_TRUSTLISTMASKS_ISSUERCERTIFICATES ||
+								   UA_TRUSTLISTMASKS_ISSUERCRLS;
+	ret = pkiStore->storeTrustList(pkiStore, &trustListData);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+
+	/* Delete rejected list data */
+	ret = pkiStore->storeRejectedList(pkiStore, NULL, 0);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+
+	/* Delete certificates */
+	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+
+	/* Delete private keys */
+	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE), NULL);
+	if (ret != UA_STATUSCODE_GOOD) return ret;
+
+	return ret;
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
+		                         size_t trustedCertificatesSize,
+                                 UA_ByteString *trustedCertificates,
+                                 size_t trustedCrlsSize,
+                                 UA_ByteString *trustedCrls,
+                                 size_t issuerCertificatesSize,
+                                 UA_ByteString *issuerCertificates,
+                                 size_t issuerCrlsSize,
+                                 UA_ByteString *issuerCrls)
+{
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/*Store trust list data */
+	UA_TrustListDataType trustListData;
+	memset((char*)&trustListData, 0x00, sizeof(UA_TrustListDataType));
+	trustListData.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES ||
+			                       UA_TRUSTLISTMASKS_TRUSTEDCRLS ||
+								   UA_TRUSTLISTMASKS_ISSUERCERTIFICATES ||
+								   UA_TRUSTLISTMASKS_ISSUERCRLS;
+	trustListData.trustedCertificatesSize = trustedCertificatesSize;
+	trustListData.trustedCertificates = trustedCertificates;
+	trustListData.trustedCrlsSize = trustedCrlsSize;
+	trustListData.trustedCrls = trustedCrls;
+	trustListData.issuerCertificatesSize = issuerCertificatesSize;
+	trustListData.issuerCertificates = issuerCertificates;
+	trustListData.issuerCrlsSize = issuerCrlsSize;
+	trustListData.issuerCrls = issuerCrls;
+	return pkiStore->storeTrustList(pkiStore, &trustListData);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *rejectedList,
+                                 size_t rejectedListSize)
+{
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/*Store rejected list data */
+	return pkiStore->storeRejectedList(pkiStore, rejectedList, rejectedListSize);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *cert)
+{
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/*Store certificate data */
+	return pkiStore->storeCertificate(pkiStore, certType, cert);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storePublicKey(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *privateKey)
+{
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/*Store certificate data */
+	return pkiStore->storePrivateKey(pkiStore, certType, privateKey);
+}
 
 /***************************/
 /* Default Client Settings */
@@ -846,9 +1000,14 @@ UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config,
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
-    retval = UA_CertificateManager_Trustlist(&config->certificateManager);
-    if(retval != UA_STATUSCODE_GOOD)
+    /* Create certificate manager */
+    retval = UA_CertificateManager_create(&config->certificateManager);
+    if(retval != UA_STATUSCODE_GOOD) {
+    	UA_LOG_ERROR(&config->logger, UA_LOGCATEGORY_USERLAND,
+    	    	    "Could not create certificate manager with error code %s",
+    	    	    UA_StatusCode_name(retval));
         return retval;
+    }
 
     /* Populate SecurityPolicies */
     UA_SecurityPolicy *sp = (UA_SecurityPolicy *)

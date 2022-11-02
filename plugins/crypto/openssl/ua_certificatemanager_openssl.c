@@ -108,7 +108,7 @@ static UA_StatusCode CertificateManager_createCSR(const UA_CertificateManager *c
 	}
 	sk_X509_EXTENSION_push(exts, key_usage_ext);
 
-	/* Get subject alternate name field from cetificate */
+	/* Get subject alternate name field from certificate */
 	X509_EXTENSION* subject_alt_name_ext = NULL;
 	int pos = X509_get_ext_by_NID(((CertificateManagerContext *)cm->keyAndCertContext)->certificate, NID_subject_alt_name, -1);
 	if (pos >= 0) {
@@ -219,7 +219,7 @@ static void UA_CertificateManager_clear(UA_CertificateManager *cm) {
 
 /* Initialize the Certificate Manager */
 UA_StatusCode
-UA_CertificateManager_create(UA_CertificateManager *cm,
+UA_CertificateManager_create_old(UA_CertificateManager *cm,
                             const UA_ByteString *certificate,
                             const UA_ByteString *privateKey) {
 	if ((cm == NULL) || (certificate == NULL) || (privateKey == NULL) ||

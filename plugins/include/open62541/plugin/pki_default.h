@@ -19,11 +19,6 @@ UA_CertificateManager_AcceptAll(UA_CertificateManager *cv);
 
 #ifdef UA_ENABLE_ENCRYPTION
 
-/* Accept certificates based on a trust-list and a revocation-list. Based on
- * mbedTLS. */
-UA_EXPORT UA_StatusCode
-UA_CertificateManager_Trustlist(UA_CertificateManager *cv);
-
 #ifdef __linux__ /* Linux only so far */
 
 #ifdef UA_ENABLE_CERT_REJECTED_DIR
@@ -44,10 +39,7 @@ UA_CertificateManager_CertFolders(UA_CertificateManager *certificateManager,
 
 /* Initialize the Certificate Manager, internal */
 UA_EXPORT UA_StatusCode
-UA_CertificateManager_create(UA_CertificateManager *certificateManager,
-							UA_PKIStore *pkiStore,
-                            const UA_ByteString *certificate,
-                            const UA_ByteString *privateKey);
+UA_CertificateManager_create(UA_CertificateManager *certificateManager);
 
 /* Get the list of rejected certificates */
 UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,

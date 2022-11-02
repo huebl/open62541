@@ -551,6 +551,7 @@ UA_SecurityPolicy_Basic256Sha256(UA_SecurityPolicy *policy, const UA_Logger *log
     channelModule->compareCertificate = (UA_StatusCode (*)(const void *, const UA_ByteString *))
         channelContext_mbedtls_compareCertificate;
 
+    policy->getLocalCertificate = UA_mbedTLS_LoadLocalCertificate;
     policy->clear = clear_sp_basic256sha256;
 
     UA_StatusCode res = policyContext_newContext_sp_basic256sha256(policy);

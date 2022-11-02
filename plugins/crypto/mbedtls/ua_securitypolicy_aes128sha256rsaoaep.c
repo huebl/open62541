@@ -541,6 +541,7 @@ UA_SecurityPolicy_Aes128Sha256RsaOaep(UA_SecurityPolicy *policy, const UA_Logger
     channelModule->compareCertificate = (UA_StatusCode (*)(const void *, const UA_ByteString *))
         channelContext_mbedtls_compareCertificate;
 
+    policy->getLocalCertificate = UA_mbedTLS_LoadLocalCertificate;
     policy->clear = clear_sp_aes128sha256rsaoaep;
 
     UA_StatusCode res = policyContext_newContext_sp_aes128sha256rsaoaep(policy);

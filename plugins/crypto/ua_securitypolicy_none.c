@@ -5,6 +5,7 @@
  *    Copyright 2017 (c) Stefan Profanter, fortiss GmbH
  */
 
+#include <open62541/nodeids.h>
 #include <open62541/plugin/securitypolicy_default.h>
 
 #ifdef UA_ENABLE_ENCRYPTION_MBEDTLS
@@ -136,7 +137,7 @@ UA_StatusCode
 UA_SecurityPolicy_None(UA_SecurityPolicy *policy, const UA_Logger *logger) {
     policy->policyUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
     policy->logger = logger;
-    policy->certificateTypeId = UA_NODEID_NULL;
+    policy->certificateTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE);
 
     policy->symmetricModule.generateKey = generateKey_none;
     policy->symmetricModule.generateNonce = generateNonce_none;

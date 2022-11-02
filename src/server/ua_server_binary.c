@@ -341,8 +341,9 @@ processHEL(UA_Server *server, UA_SecureChannel *channel, const UA_ByteString *ms
     if(channel->endpointCandidates == NULL) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
+
     for(size_t i = 0; i < server->config.endpointsSize; ++i) {
-        UA_Endpoint *endpoint = &server->config.endpoints[i];
+    	UA_Endpoint *endpoint = &server->config.endpoints[i];
         if(UA_String_equal(&helloMessage.endpointUrl, &endpoint->endpointUrl)) {
             channel->endpointCandidates[channel->endpointCandidatesSize++] = endpoint;
         }

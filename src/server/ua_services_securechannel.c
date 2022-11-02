@@ -218,7 +218,6 @@ configServerSecureChannel(void *application, UA_SecureChannel *channel,
     }
     /* Iterate over available endpoints and choose the correct one */
     const UA_Endpoint *endpoint = NULL;
-    UA_Server *const server = (UA_Server *const) application;
     for(size_t i = 0; i < channel->endpointCandidatesSize; ++i) {
         const UA_Endpoint *endpointCandidate = channel->endpointCandidates[i];
         if(!UA_ByteString_equal(&asymHeader->securityPolicyUri, &endpointCandidate->securityPolicy->policyUri))
@@ -250,7 +249,6 @@ configServerSecureChannel(void *application, UA_SecureChannel *channel,
         channel->endpointCandidatesSize = 0;
     }
 
-    channel->securityToken.tokenId = server->lastTokenId++;
     return UA_STATUSCODE_GOOD;
 }
 
@@ -270,7 +268,6 @@ UA_SecureChannelManager_open(UA_Server *server, UA_SecureChannel *channel,
         return UA_STATUSCODE_BADSECURITYMODEREJECTED;
     }
     channel->securityMode = request->securityMode;
-    channel->securityToken.channelId = server->lastChannelId++;
    
     /* Set the initial SecurityToken. Set the alternative token that is moved to
      * the primary token when the first symmetric message triggers a token

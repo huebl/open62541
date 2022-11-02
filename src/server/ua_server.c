@@ -1131,7 +1131,7 @@ getRejectedList(UA_Server *server,
 
 #ifdef UA_ENABLE_ENCRYPTION
 /* Setup the Certificate Manager */
-UA_EXPORT UA_StatusCode
+UA_EXPORT UA_StatusCode  /* FIXME: HUK ueberarbeiten */
 UA_ServerConfig_setupCertificateManager(UA_Server *server,
                               const UA_ByteString *certificate,
                               const UA_ByteString *privateKey) {
@@ -1143,12 +1143,12 @@ UA_ServerConfig_setupCertificateManager(UA_Server *server,
     if (config == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
+    if (config->pkiStoresSize < 1 || config->pkiStores == NULL) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
 
     return UA_CertificateManager_create(
-    		&(config->certificateManager),
-			config->pkiStores,         // FIXME: HUK - geht so nicht
-			certificate,
-			privateKey
+    		&(config->certificateManager)
 	);
 }
 #endif

@@ -62,6 +62,58 @@ UA_ServerConfig_setMinimal(UA_ServerConfig *config, UA_UInt16 portNumber,
                                                   certificate, 0, 0);
 }
 
+#if 0
+
+UA_UInt32 specifiedLists;
+size_t trustedCertificatesSize;
+UA_ByteString *trustedCertificates;
+size_t trustedCrlsSize;
+UA_ByteString *trustedCrls;
+size_t issuerCertificatesSize;
+UA_ByteString *issuerCertificates;
+size_t issuerCrlsSize;
+UA_ByteString *issuerCrls;
+
+UA_StatusCode (*storeTrustList)(UA_PKIStore *pkiStore, const UA_TrustListDataType *trustList);
+UA_StatusCode (*storeRejectedList)(UA_PKIStore *pkiStore,
+                                   const UA_ByteString *rejectedList,
+                                   size_t rejectedListSize);
+UA_StatusCode (*storeCertificate)(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *cert);
+UA_StatusCode (*storePrivateKey)(UA_PKIStore *pkiStore, const UA_NodeId certType, const UA_ByteString *privateKey);
+#endif
+
+UA_EXPORT UA_PKIStore*
+UA_ServerConfig_PKIStore_getDefault(UA_Server* server);
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_erase(UA_PKIStore* pkiStore);
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
+		                         size_t trustedCertificatesSize,
+                                 UA_ByteString *trustedCertificates,
+                                 size_t trustedCrlsSize,
+                                 UA_ByteString *trustedCrls,
+                                 size_t issuerCertificatesSize,
+                                 UA_ByteString *issuerCertificates,
+                                 size_t issuerCrlsSize,
+                                 UA_ByteString *issuerCrls);
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *rejectedList,
+                                 size_t rejectedListSize);
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *cert);
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storePublicKey(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *privateKey);
+
+
 #ifdef UA_ENABLE_ENCRYPTION
 
 UA_EXPORT UA_StatusCode

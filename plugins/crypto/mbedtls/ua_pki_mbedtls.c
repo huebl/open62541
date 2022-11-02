@@ -162,6 +162,7 @@ reloadCertificates(CertInfo *ci, UA_PKIStore *pkiStore) {
     UA_ByteString_init(&data);
 
     UA_TrustListDataType trustList;
+    memset((char*)&trustList, 0x00, sizeof(UA_TrustListDataType));
     trustList.specifiedLists = UA_TRUSTLISTMASKS_ALL;
     retval = pkiStore->loadTrustList(pkiStore, &trustList);
     if(!UA_StatusCode_isGood(retval))
@@ -723,16 +724,25 @@ certificateVerification_verifyApplicationURI(UA_CertificateManager *certificateM
     return retval;
 }
 
+/* Create the CSR using mbedTLS */
+static UA_StatusCode CertificateManager_createCSR(const UA_CertificateManager *cm,
+                                                  const UA_String *subject,
+                                                  const UA_ByteString *entropy,
+                                                  UA_ByteString **csr) {
+	/* FIXME: HUK TODO */
+	return UA_STATUSCODE_GOOD;
+}
+
 static void
-certificateVerification_clear(UA_CertificateManager *certificateManager) {
+UA_CertificateManager_clear(UA_CertificateManager *certificateManager) {
     CertInfo *ci = (CertInfo *)certificateManager->context;
-    if(!ci)
-        return;
-    mbedtls_x509_crt_free(&ci->trustedCertificates);
-    mbedtls_x509_crl_free(&ci->trustedCertificateCrls);
-    mbedtls_x509_crt_free(&ci->trustedIssuers);
-    mbedtls_x509_crl_free(&ci->trustedIssuerCrls);
-    UA_free(ci);
+    if (ci != NULL) {
+    	mbedtls_x509_crt_free(&ci->trustedCertificates);
+    	mbedtls_x509_crl_free(&ci->trustedCertificateCrls);
+    	mbedtls_x509_crt_free(&ci->trustedIssuers);
+    	mbedtls_x509_crl_free(&ci->trustedIssuerCrls);
+    	UA_free(ci);
+    }
     certificateManager->context = NULL;
     ci->certRejectList = NULL;
     ci->certRejectListSize = 0;
@@ -765,9 +775,12 @@ getCertificate_ExpirationDate(UA_DateTime *expiryDateTime,
 }
 
 UA_StatusCode
-UA_CertificateManager_Trustlist(UA_CertificateManager *certificateManager) {
-    if(certificateManager == NULL)
-        return UA_STATUSCODE_BADINVALIDARGUMENT;
+UA_CertificateManager_create(UA_CertificateManager *certificateManager) {
+
+	if (certificateManager == NULL) {
+	    return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
     CertInfo *ci = (CertInfo *)UA_malloc(sizeof(CertInfo));
     if(!ci)
         return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -775,10 +788,11 @@ UA_CertificateManager_Trustlist(UA_CertificateManager *certificateManager) {
 
     certificateManager->context = (void *)ci;
     certificateManager->verifyCertificate = certificateVerification_verify;
-    certificateManager->clear = certificateVerification_clear;
     certificateManager->verifyApplicationURI = certificateVerification_verifyApplicationURI;
+	certificateManager->createCertificateSigningRequest =  CertificateManager_createCSR;
+	certificateManager->clear = UA_CertificateManager_clear;
 
-    return UA_STATUSCODE_GOOD;
+	return UA_STATUSCODE_GOOD;
 }
 
 #endif

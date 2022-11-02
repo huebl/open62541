@@ -18,6 +18,10 @@ typedef struct {
     mbedtls_entropy_context entropy;
 } CertificateManagerContext;
 
+#if 0
+
+FIXME: HUKm Umzug nach ua_pki_mbedtls
+
 /* Create the CSR using mbedTLS */
 static UA_StatusCode CertificateManager_createCSR(const UA_CertificateManager *cm,
                                                   const UA_String *subject,
@@ -150,80 +154,8 @@ static UA_StatusCode CertificateManager_createCSR(const UA_CertificateManager *c
 
     return UA_STATUSCODE_GOOD;
 }
+#endif
 
-/* Clean up the Certificate Manager content */
-static void UA_CertificateManager_clear(UA_CertificateManager *cm) {
-    if (cm == NULL) {
-        return;
-    }
 
-    CertificateManagerContext *context = (CertificateManagerContext *)cm->keyAndCertContext;
-    if (context != NULL) {
-        mbedtls_x509_crt_free(&context->certificate);
-        mbedtls_pk_free(&context->privateKey);
-        mbedtls_entropy_free(&context->entropy);
-        mbedtls_ctr_drbg_free(&context->ctrDrbg);
-        UA_free(context);
-        cm->keyAndCertContext = NULL;
-        cm->createCertificateSigningRequest = NULL;
-    }
-}
-
-/* Initialize the Certificate Manager */
-UA_StatusCode
-UA_CertificateManager_create(UA_CertificateManager *cm,
-		                    UA_PKIStore *pkiStore,
-                            const UA_ByteString *certificate,
-                            const UA_ByteString *privateKey) {
-
-	if ((cm == NULL) || (certificate == NULL) || (privateKey == NULL) ||
-	    (certificate->length == 0) || (privateKey->length == 0)) {
-	    return UA_STATUSCODE_BADINVALIDARGUMENT;
-	}
-
-	CertificateManagerContext *context;
-	context = (CertificateManagerContext *)UA_malloc(sizeof(CertificateManagerContext));
-	if (context != NULL) {
-		/* Init entropy context */
-		mbedtls_entropy_init(&context->entropy);
-
-	    /* Set certificate */
-        mbedtls_x509_crt_init(&context->certificate);
-	    UA_ByteString tmpCert = UA_mbedTLS_CopyDataFormatAware(certificate);
-	    if (mbedtls_x509_crt_parse(&context->certificate, tmpCert.data, tmpCert.length) != 0) {
-	        return UA_STATUSCODE_BADINTERNALERROR;
-	    }
-
-	    /* Set private key */
-	    mbedtls_pk_init(&context->privateKey);
-	    UA_StatusCode retval =
-	    	UA_mbedTLS_loadPrivateKey(pkiStore,
-	    			                  &context->entropy,
-									  pkiStore->certificateGroupId,
-	    			                  &context->privateKey);
-	    if (retval != 0) {
-	        return UA_STATUSCODE_BADINTERNALERROR;
-	    }
-
-	    /* Initialize the CTR-DRBG module */
-	    mbedtls_ctr_drbg_init(&context->ctrDrbg);
-        unsigned char pers[] = "saPfdfUdftljdh/sj4:59iw5St#984mf83+dkGJRE";
-	    if (mbedtls_ctr_drbg_seed(&context->ctrDrbg,
-	                              mbedtls_entropy_func, &context->entropy, pers, sizeof(pers)) != 0) {
-	        return UA_STATUSCODE_BADINTERNALERROR;
-	    }
-
-	    /* Set the worker function for creating the CSR */
-	    cm->createCertificateSigningRequest =  CertificateManager_createCSR;
-	    /* Set the cleanup function */
-	    cm->clear = UA_CertificateManager_clear;
-	    /* Set the context pointer for further usage */
-	    cm->keyAndCertContext = context;
-	} else {
-	    return UA_STATUSCODE_BADOUTOFMEMORY;
-	}
-
-	return UA_STATUSCODE_GOOD;
-}
 
 #endif

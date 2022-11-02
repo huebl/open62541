@@ -339,6 +339,7 @@ encodeHeadersSym(UA_MessageContext *mc, size_t totalLength) {
         header.messageTypeAndChunkType += UA_CHUNKTYPE_INTERMEDIATE;
 
     /* Increase the sequence number in the channel */
+    printf("XXXXXXXXXXXXX FIXME HUK SeqNo=%d\n", channel->sendSequenceNumber);
     channel->sendSequenceNumber++;
 
     UA_SequenceHeader seqHeader;
@@ -586,6 +587,16 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
              &UA_TRANSPORT[UA_TRANSPORT_ASYMMETRICALGORITHMSECURITYHEADER], NULL);
     UA_CHECK_STATUS(res, return res);
 
+    /* New channel, create a security policy context and attach */
+    printf("XXXXXXXXXXXXXX  FIXME :HUK %d %d %d\n", secureChannelId, channel->securityToken.channelId, channel->securityToken.tokenId );
+    if(!channel->endpoint) {
+        if(channel->processOPNHeader)
+            res = channel->processOPNHeader(application, channel, &asymHeader);
+        if(!channel->endpoint)
+            res = UA_STATUSCODE_BADINTERNALERROR;
+        UA_CHECK_STATUS(res, goto error);
+    }
+
     if(asymHeader.senderCertificate.length > 0) {
         if(channel->certificateManager) {
             res = channel->certificateManager->
@@ -603,16 +614,8 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
         UA_CHECK_STATUS(res, goto error);
     }
 
-    /* New channel, create a security policy context and attach */
-    if(!channel->endpoint) {
-        if(channel->processOPNHeader)
-            res = channel->processOPNHeader(application, channel, &asymHeader);
-        if(!channel->endpoint)
-            res = UA_STATUSCODE_BADINTERNALERROR;
-        UA_CHECK_STATUS(res, goto error);
-    }
-
     /* On the client side, take the SecureChannelId from the first response */
+    printf("XXXXXXXXXXXXXX  FIXME :HUK %d %d %d\n", secureChannelId, channel->securityToken.channelId, channel->securityToken.tokenId );
     if(secureChannelId != 0 && channel->securityToken.channelId == 0)
         channel->securityToken.channelId = secureChannelId;
 
@@ -678,6 +681,9 @@ unpackPayloadMSG(UA_SecureChannel *channel, UA_Chunk *chunk) {
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     /* Check the ChannelId. Non-opened channels have the id zero. */
+
+    printf("XXXXXXXXXXXXXX  FIXME :HUK MSG %d %d\n", secureChannelId, channel->securityToken.channelId );
+
     if(secureChannelId != channel->securityToken.channelId)
         return UA_STATUSCODE_BADSECURECHANNELIDINVALID;
 #endif
@@ -814,10 +820,12 @@ processChunks(UA_SecureChannel *channel, void *application,
         if(chunk->messageType == UA_MESSAGETYPE_OPN) {
             if(channel->state != UA_SECURECHANNELSTATE_OPEN &&
                channel->state != UA_SECURECHANNELSTATE_OPN_SENT &&
-               channel->state != UA_SECURECHANNELSTATE_ACK_SENT)
+               channel->state != UA_SECURECHANNELSTATE_ACK_SENT) {
                 res = UA_STATUSCODE_BADINVALIDSTATE;
-            else
+            }
+            else {
                 res = unpackPayloadOPN(channel, chunk, application);
+            }
         } else if(chunk->messageType == UA_MESSAGETYPE_MSG ||
                   chunk->messageType == UA_MESSAGETYPE_CLO) {
             if(channel->state == UA_SECURECHANNELSTATE_CLOSED) {

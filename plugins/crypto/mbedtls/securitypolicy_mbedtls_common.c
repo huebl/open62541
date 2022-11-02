@@ -290,6 +290,8 @@ mbedtls_decrypt_rsaOaep(ChannelContext_mbedtls *cc,
                                                      NULL, 0, &outLength,
                                                      data->data + inOffset,
                                                      buf, 512);
+        printf("XXXXXXXXXXXXXXXXX %d\n", mbedErr);
+         abort(); /* FIXME: HUK */
 #else
         int mbedErr = mbedtls_rsa_rsaes_oaep_decrypt(rsaContext, mbedtls_ctr_drbg_random,
                                                      drbgContext,
@@ -356,9 +358,11 @@ UA_StatusCode
 UA_mbedTLS_LoadLocalCertificate(const UA_SecurityPolicy *policy, UA_PKIStore *pkiStore, UA_ByteString *target) {
     UA_ByteString localCertificate;
     UA_ByteString_init(&localCertificate);
+
     UA_StatusCode retval = pkiStore->loadCertificate(pkiStore, policy->certificateTypeId, &localCertificate);
-    if(!UA_StatusCode_isGood(retval))
+    if(!UA_StatusCode_isGood(retval)) {
         return retval;
+    }
 
     UA_ByteString data = UA_mbedTLS_CopyDataFormatAware(&localCertificate);
     UA_ByteString_clear(&localCertificate);
@@ -610,11 +614,13 @@ channelContext_mbedtls_loadKeyThenCrypt(ChannelContext_mbedtls *cc,
         return UA_STATUSCODE_BADINTERNALERROR;
 
     mbedtls_pk_context privateKey;
+    mbedtls_pk_init(&privateKey);
     UA_StatusCode retval =
         UA_mbedTLS_loadPrivateKey(cc->pkiStore, &cc->policyContext->drbgContext,
                                   cc->certificateTypeId,
                                   &privateKey);
     if(retval != UA_STATUSCODE_GOOD) {
+    	abort();
         return retval;
     }
 

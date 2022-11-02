@@ -36,6 +36,8 @@ THREAD_CALLBACK(serverloop) {
 static void setup(void) {
     running = true;
 
+    UA_StatusCode ret;
+
     /* Load certificate and private key */
     UA_ByteString certificate;
     certificate.length = CERT_DER_LENGTH;
@@ -57,9 +59,10 @@ static void setup(void) {
 
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
-    UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
-    config->pkiStores->storeCertificate(config->pkiStores, certType, &certificate); /* FIXME: HUK */
-    config->pkiStores->storePrivateKey(config->pkiStores, certType, &privateKey); /* FIXME: HUK */
+    ret = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+    ck_assert(ret == UA_STATUSCODE_GOOD);
+    config->pkiStores[0].storeCertificate(&config->pkiStores[0], certType, &certificate); /* FIXME: HUK */
+    config->pkiStores[0].storePrivateKey(&config->pkiStores[0], certType, &privateKey); /* FIXME: HUK */
 
     /* Set the ApplicationUri used in the certificate */
     UA_String_clear(&config->applicationDescription.applicationUri);
