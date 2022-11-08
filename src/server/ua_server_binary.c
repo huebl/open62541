@@ -342,8 +342,22 @@ processHEL(UA_Server *server, UA_SecureChannel *channel, const UA_ByteString *ms
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
 
+    /* FIXME: HUK  TODO */
+    printf(">>>>>> %ld\n", server->config.endpointsSize);
     for(size_t i = 0; i < server->config.endpointsSize; ++i) {
     	UA_Endpoint *endpoint = &server->config.endpoints[i];
+
+    	printf("HEL: ");
+    	for (size_t idx = 0; idx < helloMessage.endpointUrl.length; idx++) {
+    		printf("%c", helloMessage.endpointUrl.data[idx]);
+    	}
+    	printf("\n");
+       	printf("END: ");
+        for (size_t idx = 0; idx < endpoint->endpointUrl.length; idx++) {
+        	printf("%c", endpoint->endpointUrl.data[idx]);
+        }
+        printf("\n");
+
         if(UA_String_equal(&helloMessage.endpointUrl, &endpoint->endpointUrl)) {
             channel->endpointCandidates[channel->endpointCandidatesSize++] = endpoint;
         }

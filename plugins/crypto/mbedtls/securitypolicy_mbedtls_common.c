@@ -290,8 +290,9 @@ mbedtls_decrypt_rsaOaep(ChannelContext_mbedtls *cc,
                                                      NULL, 0, &outLength,
                                                      data->data + inOffset,
                                                      buf, 512);
+        /* FIXME: HUK TODO */
         printf("XXXXXXXXXXXXXXXXX %d\n", mbedErr);
-         abort(); /* FIXME: HUK */
+
 #else
         int mbedErr = mbedtls_rsa_rsaes_oaep_decrypt(rsaContext, mbedtls_ctr_drbg_random,
                                                      drbgContext,
@@ -620,7 +621,6 @@ channelContext_mbedtls_loadKeyThenCrypt(ChannelContext_mbedtls *cc,
                                   cc->certificateTypeId,
                                   &privateKey);
     if(retval != UA_STATUSCODE_GOOD) {
-    	abort();
         return retval;
     }
 

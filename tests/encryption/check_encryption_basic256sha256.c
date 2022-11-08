@@ -84,6 +84,7 @@ START_TEST(encryption_connect) {
     UA_Client *client = NULL;
     UA_EndpointDescription* endpointArray = NULL;
     size_t endpointArraySize = 0;
+#if 0
     UA_ByteString *trustList = NULL;
     size_t trustListSize = 0;
     UA_ByteString *revocationList = NULL;
@@ -99,6 +100,7 @@ START_TEST(encryption_connect) {
     privateKey.length = KEY_DER_LENGTH;
     privateKey.data = KEY_DER_DATA;
     ck_assert_uint_ne(privateKey.length, 0);
+#endif
 
     /* The Get endpoint (discovery service) is done with
      * security mode as none to see the server's capability
@@ -134,18 +136,21 @@ START_TEST(encryption_connect) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
+#if 0 /* FIXME: HUK TODO */
     UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
                                          trustList, trustListSize,
                                          revocationList, revocationListSize);
-    cc->certificateVerification.clear(&cc->certificateVerification);
-    UA_CertificateVerification_AcceptAll(&cc->certificateVerification);
+#endif
+    UA_ClientConfig_setDefaultEncryption(cc,  NULL);
     cc->securityPolicyUri =
         UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
     ck_assert(client != NULL);
 
+#if 0
     for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
         UA_ByteString_clear(&trustList[deleteCount]);
     }
+#endif
 
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
@@ -167,10 +172,12 @@ START_TEST(encryption_connect_pem) {
     UA_Client *client = NULL;
     UA_EndpointDescription* endpointArray = NULL;
     size_t endpointArraySize = 0;
+#if 0
     UA_ByteString *trustList = NULL;
     size_t trustListSize = 0;
     UA_ByteString *revocationList = NULL;
     size_t revocationListSize = 0;
+
 
     /* Load certificate and private key */
     UA_ByteString certificate;
@@ -182,6 +189,7 @@ START_TEST(encryption_connect_pem) {
     privateKey.length = KEY_PEM_LENGTH;
     privateKey.data = KEY_PEM_DATA;
     ck_assert_uint_ne(privateKey.length, 0);
+#endif
 
     /* The Get endpoint (discovery service) is done with
      * security mode as none to see the server's capability
@@ -217,18 +225,21 @@ START_TEST(encryption_connect_pem) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
+#if 0 /* FIXME: HUK TODO */
     UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
                                          trustList, trustListSize,
                                          revocationList, revocationListSize);
-    cc->certificateVerification.clear(&cc->certificateVerification);
-    UA_CertificateVerification_AcceptAll(&cc->certificateVerification);
+#endif
+    UA_ClientConfig_setDefaultEncryption(cc,  NULL);
     cc->securityPolicyUri =
         UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
     ck_assert(client != NULL);
 
+#if 0
     for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
         UA_ByteString_clear(&trustList[deleteCount]);
     }
+#endif
 
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");

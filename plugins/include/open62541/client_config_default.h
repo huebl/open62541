@@ -20,10 +20,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config);
 
 #ifdef UA_ENABLE_ENCRYPTION
 UA_StatusCode UA_EXPORT
-UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config,
-                                     UA_ByteString localCertificate, UA_ByteString privateKey,
-                                     const UA_ByteString *trustList, size_t trustListSize,
-                                     const UA_ByteString *revocationList, size_t revocationListSize);
+UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config, const UA_ByteString *pkiDir);
 #endif
 
 _UA_END_DECLS

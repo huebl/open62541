@@ -107,7 +107,7 @@ typedef struct {
      *
      * The information in the advanced configuration is used during reconnect
      * when the SecureChannel was broken. */
-    UA_EndpointDescription endpoint;
+    UA_EndpointDescription endpointDescription;
     UA_UserTokenPolicy userTokenPolicy;
 
     /**
@@ -143,11 +143,9 @@ typedef struct {
     UA_SecurityPolicy *securityPolicies;
 
     /* One PKIStore corresponds to one certificate Group */
+    UA_NodeId certificateGroupId;
     size_t pkiStoresSize;
     UA_PKIStore *pkiStores;
-
-    size_t endpointsSize;
-    UA_Endpoint *endpoints;
 
     /* Certificate Verification Plugin */
     UA_CertificateManager certificateManager;

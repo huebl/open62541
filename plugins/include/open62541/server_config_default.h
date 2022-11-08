@@ -109,7 +109,7 @@ UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 								 const UA_ByteString *cert);
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storePublicKey(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *privateKey);
 

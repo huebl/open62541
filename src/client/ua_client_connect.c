@@ -31,7 +31,7 @@ getSecurityPolicy(UA_Client *client, UA_String policyUri) {
 static UA_Boolean
 endpointUnconfigured(UA_Client *client) {
     char test = 0;
-    char *pos = (char *)&client->config.endpoint;
+    char *pos = (char *)&client->config.endpointDescription;
     for(size_t i = 0; i < sizeof(UA_EndpointDescription); i++)
         test = test | *(pos + i);
     pos = (char *)&client->config.userTokenPolicy;
@@ -123,7 +123,7 @@ encryptUserIdentityToken(UA_Client *client, const UA_String *userTokenSecurityPo
 
     void *channelContext;
     UA_StatusCode retval = sp->channelModule.
-        newContext(sp, client->channel.endpoint->pkiStore, &client->config.endpoint.serverCertificate, &channelContext);
+        newContext(sp, client->channel.endpoint->pkiStore, &client->config.endpointDescription.serverCertificate, &channelContext);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_NETWORK,
                        "Could not instantiate the SecurityPolicy for the UserToken");
@@ -648,15 +648,15 @@ responseGetEndpoints(UA_Client *client, void *userdata,
     UA_EndpointDescription* endpointArray = resp->endpoints;
     size_t endpointArraySize = resp->endpointsSize;
     for(size_t i = 0; i < endpointArraySize; ++i) {
-        UA_EndpointDescription* endpoint = &endpointArray[i];
+        UA_EndpointDescription* endpointDescription = &endpointArray[i];
         /* Look out for binary transport endpoints.
          * Note: Siemens returns empty ProfileUrl, we will accept it as binary. */
-        if(endpoint->transportProfileUri.length != 0 &&
-           !UA_String_equal(&endpoint->transportProfileUri, &binaryTransport))
+        if(endpointDescription->transportProfileUri.length != 0 &&
+           !UA_String_equal (&endpointDescription->transportProfileUri, &binaryTransport))
             continue;
 
         /* Valid SecurityMode? */
-        if(endpoint->securityMode < 1 || endpoint->securityMode > 3) {
+        if(endpointDescription->securityMode < 1 || endpointDescription->securityMode > 3) {
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                         "Rejecting endpoint %lu: invalid security mode",
                         (long unsigned)i);
@@ -665,7 +665,7 @@ responseGetEndpoints(UA_Client *client, void *userdata,
 
         /* Selected SecurityMode? */
         if(client->config.securityMode > 0 &&
-           client->config.securityMode != endpoint->securityMode) {
+           client->config.securityMode != endpointDescription->securityMode) {
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                         "Rejecting endpoint %lu: security mode doesn't match",
                         (long unsigned)i);
@@ -675,7 +675,7 @@ responseGetEndpoints(UA_Client *client, void *userdata,
         /* Matching SecurityPolicy? */
         if(client->config.securityPolicyUri.length > 0 &&
            !UA_String_equal(&client->config.securityPolicyUri,
-                            &endpoint->securityPolicyUri)) {
+                            &endpointDescription->securityPolicyUri)) {
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                         "Rejecting endpoint %lu: security policy doesn't match",
                         (long unsigned)i);
@@ -683,7 +683,7 @@ responseGetEndpoints(UA_Client *client, void *userdata,
         }
 
         /* SecurityPolicy available? */
-        if(!getSecurityPolicy(client, endpoint->securityPolicyUri)) {
+        if(!getSecurityPolicy(client, endpointDescription->securityPolicyUri)) {
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                         "Rejecting endpoint %lu: security policy not available",
                         (long unsigned)i);
@@ -693,8 +693,8 @@ responseGetEndpoints(UA_Client *client, void *userdata,
         endpointFound = true;
 
         /* Look for a user token policy with an anonymous token */
-        for(size_t j = 0; j < endpoint->userIdentityTokensSize; ++j) {
-            UA_UserTokenPolicy* tokenPolicy = &endpoint->userIdentityTokens[j];
+        for(size_t j = 0; j < endpointDescription->userIdentityTokensSize; ++j) {
+            UA_UserTokenPolicy* tokenPolicy = &endpointDescription->userIdentityTokens[j];
             const UA_DataType *tokenType =
                 client->config.userIdentityToken.content.decoded.type;
 
@@ -761,16 +761,16 @@ responseGetEndpoints(UA_Client *client, void *userdata,
                                                  "Certificate", "IssuedToken"};
             UA_String *securityPolicyUri = &tokenPolicy->securityPolicyUri;
             if(securityPolicyUri->length == 0)
-                securityPolicyUri = &endpoint->securityPolicyUri;
+                securityPolicyUri = &endpointDescription->securityPolicyUri;
 
             /* Log the selected endpoint */
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                         "Selected endpoint %lu in URL %.*s with SecurityMode "
                         "%s and SecurityPolicy %.*s", (long unsigned)i,
-                        (int)endpoint->endpointUrl.length, endpoint->endpointUrl.data,
-                        securityModeNames[endpoint->securityMode - 1],
-                        (int)endpoint->securityPolicyUri.length,
-                        endpoint->securityPolicyUri.data);
+                        (int)endpointDescription->endpointUrl.length, endpointDescription->endpointUrl.data,
+                        securityModeNames[endpointDescription->securityMode - 1],
+                        (int)endpointDescription->securityPolicyUri.length,
+                        endpointDescription->securityPolicyUri.data);
 
             /* Log the selected UserTokenPolicy */
             UA_LOG_INFO(&client->config.logger, UA_LOGCATEGORY_CLIENT,
@@ -783,9 +783,9 @@ responseGetEndpoints(UA_Client *client, void *userdata,
 
             /* Move to the client config */
             tokenFound = true;
-            UA_EndpointDescription_clear(&client->config.endpoint);
-            client->config.endpoint = *endpoint;
-            UA_EndpointDescription_init(endpoint);
+            UA_EndpointDescription_clear(&client->config.endpointDescription);
+            client->config.endpointDescription = *endpointDescription;
+            UA_EndpointDescription_init(endpointDescription);
             UA_UserTokenPolicy_clear(&client->config.userTokenPolicy);
             client->config.userTokenPolicy = *tokenPolicy;
             UA_UserTokenPolicy_init(tokenPolicy);
@@ -808,8 +808,8 @@ responseGetEndpoints(UA_Client *client, void *userdata,
     }
 
     /* Close the SecureChannel if a different SecurityPolicy is defined by the Endpoint */
-    if(client->config.endpoint.securityMode != client->channel.securityMode ||
-       !UA_String_equal(&client->config.endpoint.securityPolicyUri,
+    if(client->config.endpointDescription.securityMode != client->channel.securityMode ||
+       !UA_String_equal(&client->config.endpointDescription.securityPolicyUri,
                         &client->channel.endpoint->securityPolicy->policyUri))
         closeSecureChannel(client);
     UA_UNLOCK(&client->clientMutex);
@@ -917,7 +917,7 @@ createSessionAsync(UA_Client *client) {
     request.clientNonce = client->localNonce;
     request.requestedSessionTimeout = client->config.requestedSessionTimeout;
     request.maxResponseMessageSize = UA_INT32_MAX;
-    request.endpointUrl = client->config.endpoint.endpointUrl;
+    request.endpointUrl = client->config.endpointDescription.endpointUrl;
     request.clientDescription = client->config.clientDescription;
     if(client->channel.securityMode == UA_MESSAGESECURITYMODE_SIGN ||
        client->channel.securityMode == UA_MESSAGESECURITYMODE_SIGNANDENCRYPT) {
@@ -942,30 +942,90 @@ createSessionAsync(UA_Client *client) {
     return res;
 }
 
-static void
+static UA_StatusCode
 initSecurityPolicy(UA_Client *client) {
     /* Already initialized */
-    if(client->channel.endpoint->securityPolicy)
-        return;
+#if 0 /* FIXME :HUK TODO */
+    if(client->channel.endpoint->securityPolicy) {
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+#endif
 
-    client->channel.securityMode = client->config.endpoint.securityMode;
+    client->channel.securityMode = client->config.endpointDescription.securityMode;
 
-    if(client->channel.securityMode == UA_MESSAGESECURITYMODE_INVALID)
+    if(client->channel.securityMode == UA_MESSAGESECURITYMODE_INVALID) {
         client->channel.securityMode = UA_MESSAGESECURITYMODE_NONE;
+    }
     
+    /* Lookup the pki store */
+    UA_PKIStore *pkiStore = NULL;
+    for(size_t i = 0; i < client->config.pkiStoresSize; ++i) {
+        if(UA_NodeId_equal(&client->config.certificateGroupId, &client->config.pkiStores[i].certificateGroupId)) {
+            pkiStore = &client->config.pkiStores[i];
+        }
+    }
+
+    /* Get Security Policy */
     UA_SecurityPolicy *sp = NULL;
-    if(client->config.endpoint.securityPolicyUri.length == 0) {
+    if(client->config.endpointDescription.securityPolicyUri.length == 0) {
         sp = getSecurityPolicy(client,
                                UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None"));
     } else {
-        sp = getSecurityPolicy(client, client->config.endpoint.securityPolicyUri);
+        sp = getSecurityPolicy(client, client->config.endpointDescription.securityPolicyUri);
+    }
+
+    /* set remote certificate */
+    UA_StatusCode retVal = UA_ByteString_copy(
+        &client->config.endpointDescription.serverCertificate,
+		&client->channel.remoteCertificate
+	);
+
+    /* Create new Context */
+    retVal = sp->channelModule.
+        newContext(sp, pkiStore, &client->channel.remoteCertificate, &client->channel.channelContext);
+    UA_CHECK_STATUS_WARN(retVal, return retVal, sp->logger,
+                         UA_LOGCATEGORY_SECURITYPOLICY,
+                         "Could not set up the SecureChannel context");
+
+    UA_ByteString remoteCertificateThumbprint =
+        {20, client->channel.remoteCertificateThumbprint};
+    retVal = sp->asymmetricModule.
+        makeCertificateThumbprint(sp, &client->channel.remoteCertificate,
+                                  &remoteCertificateThumbprint);
+    UA_CHECK_STATUS_WARN(retVal, return retVal, sp->logger,
+                         UA_LOGCATEGORY_SECURITYPOLICY,
+                         "Could not create the certificate thumbprint");
+
+
+    /* Create Endpoint */
+    UA_Endpoint* endpoint = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint));
+    if (endpoint == NULL) {
+    	return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+    memset(endpoint, 0, sizeof(UA_Endpoint));
+    retVal = UA_Endpoint_init(
+    	endpoint,
+		&client->config.endpointDescription.endpointUrl,
+        pkiStore,
+        sp,
+		false,
+		false,
+		false,
+		client->config.endpointDescription.server,
+		&client->config.userTokenPolicy,
+		1
+	);
+    if (retVal != UA_STATUSCODE_GOOD) {
+    	return retVal;
     }
 
     client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
     if(sp) {
         client->connectStatus =
-            UA_SecureChannel_setEndpoint(&client->channel, NULL); // TODO: Implement
+            UA_SecureChannel_setEndpoint(&client->channel, endpoint);
     }
+
+    return UA_STATUSCODE_GOOD;
 }
 
 static void
@@ -1074,9 +1134,11 @@ verifyClientApplicationURI(UA_Client *client) {
         
         UA_ByteString localCertificate;
         UA_ByteString_init(&localCertificate);
-        client->channel.endpoint->securityPolicy->getLocalCertificate(client->channel.endpoint->securityPolicy,
-                                                                      client->channel.endpoint->pkiStore,
-                                                                      &localCertificate);
+        client->channel.endpoint->securityPolicy->getLocalCertificate(
+        	client->channel.endpoint->securityPolicy,
+            client->channel.endpoint->pkiStore,
+            &localCertificate
+	    );
       
         if(!localCertificate.data) {
                 UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
@@ -1243,9 +1305,6 @@ initConnect(UA_Client *client) {
     UA_StatusCode res = __UA_Client_startup(client);
     UA_CHECK_STATUS(res, return res);
 
-    /* Consistency check the client's own ApplicationURI */
-    verifyClientApplicationURI(client);
-
     /* Reset the connect status */
     client->connectStatus = UA_STATUSCODE_GOOD;
     client->channel.renewState = UA_SECURECHANNELRENEWSTATE_NORMAL;
@@ -1258,6 +1317,9 @@ initConnect(UA_Client *client) {
 
     /* Initialize the SecurityPolicy */
     initSecurityPolicy(client);
+
+    /* Consistency check the client's own ApplicationURI */
+    verifyClientApplicationURI(client);
 
     /* Extract hostname and port from the URL */
     UA_String hostname = UA_STRING_NULL;

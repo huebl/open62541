@@ -69,7 +69,7 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
     UA_ExtensionObject_clear(&config->userIdentityToken);
     UA_String_clear(&config->securityPolicyUri);
 
-    UA_EndpointDescription_clear(&config->endpoint);
+    UA_EndpointDescription_clear(&config->endpointDescription);
     UA_UserTokenPolicy_clear(&config->userTokenPolicy);
 
     if(config->certificateManager.clear)

@@ -232,7 +232,8 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     }
 
     /* Endpoints */
-    /* conf->endpoints = {0, NULL}; */
+    conf->endpoints = NULL;
+    conf->endpointsSize = 0;
 
     /* Certificate Verification that accepts every certificate. Can be
      * overwritten when the policy is specialized. */
@@ -486,6 +487,7 @@ UA_ServerConfig_setMinimalCustomBuffer(UA_ServerConfig *config, UA_UInt16 portNu
         return retval;
     }
 
+    /* Create default PKIStore */
     UA_NodeId certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
     config->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
     if(config->pkiStores == NULL) {
@@ -679,6 +681,7 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
     /* Create file pki store */
     UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
     conf->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
+
     retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], &certType);
     if(retval != UA_STATUSCODE_GOOD) {
     	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
@@ -844,7 +847,7 @@ UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storePublicKey(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *privateKey)
 {
@@ -973,6 +976,21 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
     }
     config->securityPoliciesSize = 1;
 
+    /* Create default PKIStore */
+    config->certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+    config->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
+    if(config->pkiStores == NULL) {
+        /* UA_ServerConfig_clean(config); */
+        return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+
+    retval = UA_PKIStore_File(&config->pkiStores[0], &config->certificateGroupId);
+    if(retval != UA_STATUSCODE_GOOD) {
+        /* UA_ServerConfig_clean(config); */
+        return retval;
+    }
+    config->pkiStoresSize++;
+
     config->customDataTypes = NULL;
     config->stateCallback = NULL;
     config->connectivityCheckInterval = 0;
@@ -992,10 +1010,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
 
 #ifdef UA_ENABLE_ENCRYPTION
 UA_StatusCode
-UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config,
-                                     UA_ByteString localCertificate, UA_ByteString privateKey,
-                                     const UA_ByteString *trustList, size_t trustListSize,
-                                     const UA_ByteString *revocationList, size_t revocationListSize) {
+UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config, const UA_ByteString *pkiDir) {
     UA_StatusCode retval = UA_ClientConfig_setDefault(config);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;

@@ -24,6 +24,14 @@ UA_Endpoint_init(UA_Endpoint *endpoint,
     if(endpoint == NULL || endpointUrl == NULL || pkiStore == NULL || securityPolicy == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
+
+    /* FIXME: HUK */
+    for (size_t idx = 0; idx < endpointUrl->length; idx++) {
+    	printf("%c", endpointUrl->data[idx]);
+    }
+    printf("\n");
+
+
     endpoint->pkiStore = pkiStore;
     endpoint->securityPolicy = securityPolicy;
     endpoint->allowNone = allowNone;
