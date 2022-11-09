@@ -178,10 +178,10 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     /* Networking */
     /* Set up the local ServerUrls. They are used during startup to initialize
      * the server sockets. */
-    UA_String serverUrls[2];
+    UA_String serverUrls[3];
     size_t serverUrlsSize = 0;
     char hostnamestr[256];
-    char serverUrlBuffer[2][512];
+    char serverUrlBuffer[3][512];
 
     if(portNumber == 0) {
         UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
@@ -219,6 +219,11 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
             UA_snprintf(serverUrlBuffer[1], sizeof(serverUrlBuffer[1]),
                         "opc.tcp://%s:%u", hostnamestr, portNumber);
             serverUrls[serverUrlsSize] = UA_STRING(serverUrlBuffer[1]);
+            serverUrlsSize++;
+
+            UA_snprintf(serverUrlBuffer[2], sizeof(serverUrlBuffer[2]),
+                        "opc.tcp://localhost:%u", portNumber);
+            serverUrls[serverUrlsSize] = UA_STRING(serverUrlBuffer[2]);
             serverUrlsSize++;
         }
 

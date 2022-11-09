@@ -735,6 +735,10 @@ static UA_StatusCode CertificateManager_createCSR(const UA_CertificateManager *c
 
 static void
 UA_CertificateManager_clear(UA_CertificateManager *certificateManager) {
+	if (certificateManager->context == NULL) {
+		return; /* FIXME: HUK TODO - Kann weg */
+	}
+
     CertInfo *ci = (CertInfo *)certificateManager->context;
     if (ci != NULL) {
     	mbedtls_x509_crt_free(&ci->trustedCertificates);

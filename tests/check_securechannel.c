@@ -56,8 +56,8 @@ teardown_pkiStore(void) {
 	pkiStore = NULL;
 }
 
-static void
-setup_endpoint(void) {
+static UA_StatusCode
+setup_endpoint(UA_SecureChannel* channel) {
 	setup_pkiStore();
 
 	UA_String serverUrl = UA_BYTESTRING("opc.tcp://127.0.0.1:4840");
@@ -76,6 +76,11 @@ setup_endpoint(void) {
 	    applicationDescription,
 	    NULL,
 	    0);
+
+	UA_SecureChannel* secureChannel = channel;
+	if (secureChannel == NULL) secureChannel = &testChannel;
+
+	return UA_SecureChannel_setEndpoint(secureChannel, endpoint);
 }
 
 
@@ -92,8 +97,7 @@ setup_secureChannel(void) {
     TestingPolicy(&dummyPolicy, dummyCertificate, &fCalled, &keySizes);
     UA_SecureChannel_init(&testChannel);
     testChannel.config = UA_ConnectionConfig_default;
-    setup_endpoint();
-    UA_SecureChannel_setEndpoint(&testChannel, endpoint);
+    setup_endpoint(&testChannel);
 
     testChannel.connectionManager = &testConnectionManagerTCP;
     testChannel.state = UA_SECURECHANNELSTATE_OPEN;
@@ -148,8 +152,7 @@ START_TEST(SecureChannel_initAndDelete) {
     UA_SecureChannel channel;
     UA_SecureChannel_init(&channel);
     channel.config = UA_ConnectionConfig_default;
-    setup_endpoint();
-    retval = UA_SecureChannel_setEndpoint(&channel, endpoint);
+    retval = setup_endpoint(&channel);
 
     ck_assert_msg(retval == UA_STATUSCODE_GOOD, "Expected StatusCode to be good");
     ck_assert_msg(channel.state == UA_SECURECHANNELSTATE_FRESH, "Expected state to be new/fresh");

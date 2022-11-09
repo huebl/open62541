@@ -38,36 +38,54 @@ static void setup(void) {
 
     UA_StatusCode ret;
 
-    /* Load certificate and private key */
-    UA_ByteString certificate;
-    certificate.length = CERT_DER_LENGTH;
-    certificate.data = CERT_DER_DATA;
+    /* Save certificate and private key in pki store */
+     UA_ByteString certificate;
+     certificate.length = server_cert_der_len;
+     certificate.data = server_cert_der;
 
-    UA_ByteString privateKey;
-    privateKey.length = KEY_DER_LENGTH;
-    privateKey.data = KEY_DER_DATA;
+     UA_ByteString privateKey;
+     privateKey.length = server_key_der_len;
+     privateKey.data = server_key_der;
 
-    UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+ 	UA_ServerConfig_PKIStore_erase(UA_ServerConfig_PKIStore_getDefault(server));
+ 	UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+ 	UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+ 	UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
+ 	UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
 
-    /* TODO test trustList
-    if(argc > 3)
-        trustListSize = (size_t)argc-3;
-    UA_STACKARRAY(UA_ByteString, trustList, trustListSize);
-    for(size_t i = 0; i < trustListSize; i++)
-        trustList[i] = loadFile(argv[i+3]);
-    */
+ 	UA_ServerConfig_PKIStore_storeTrustList(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		1, &certificate,
+ 		0, NULL,
+ 		0, NULL,
+ 		0, NULL
+ 	);
 
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
     ret = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
     ck_assert(ret == UA_STATUSCODE_GOOD);
-    config->pkiStores[0].storeCertificate(&config->pkiStores[0], certType, &certificate); /* FIXME: HUK */
-    config->pkiStores[0].storePrivateKey(&config->pkiStores[0], certType, &privateKey); /* FIXME: HUK */
 
-    /* Set the ApplicationUri used in the certificate */
+    /* Set the attributes used in the certificate */
     UA_String_clear(&config->applicationDescription.applicationUri);
     config->applicationDescription.applicationUri =
-        UA_STRING_ALLOC("urn:unconfigured:application");
+        UA_STRING_ALLOC("urn:open62541.server.application");
 
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);
@@ -84,23 +102,6 @@ START_TEST(encryption_connect) {
     UA_Client *client = NULL;
     UA_EndpointDescription* endpointArray = NULL;
     size_t endpointArraySize = 0;
-#if 0 /* FIXME: HUK :TODO */
-    UA_ByteString *trustList = NULL;
-    size_t trustListSize = 0;
-    UA_ByteString *revocationList = NULL;
-    size_t revocationListSize = 0;
-
-    /* Load certificate and private key */
-    UA_ByteString certificate;
-    certificate.length = CERT_DER_LENGTH;
-    certificate.data = CERT_DER_DATA;
-    ck_assert_uint_ne(certificate.length, 0);
-
-    UA_ByteString privateKey;
-    privateKey.length = KEY_DER_LENGTH;
-    privateKey.data = KEY_DER_DATA;
-    ck_assert_uint_ne(privateKey.length, 0);
-#endif
 
     /* The Get endpoint (discovery service) is done with
      * security mode as none to see the server's capability
@@ -136,21 +137,12 @@ START_TEST(encryption_connect) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-#if 0 /* FIXME:_HUK TODO */
-    UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
-                                         trustList, trustListSize,
-                                         revocationList, revocationListSize);
-#endif
     UA_ClientConfig_setDefaultEncryption(cc, NULL);
-    cc->securityPolicyUri =
-        UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
-    ck_assert(client != NULL);
 
-#if 0 /* FIXME: HUK TODO */
-    for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
-        UA_ByteString_clear(&trustList[deleteCount]);
-    }
-#endif
+    cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
+    cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
+    cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
+    ck_assert(client != NULL);
 
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
@@ -172,23 +164,6 @@ START_TEST(encryption_connect_pem) {
     UA_Client *client = NULL;
     UA_EndpointDescription* endpointArray = NULL;
     size_t endpointArraySize = 0;
-#if 0 /* FIXME: TODO */
-    UA_ByteString *trustList = NULL;
-    size_t trustListSize = 0;
-    UA_ByteString *revocationList = NULL;
-    size_t revocationListSize = 0;
-
-    /* Load certificate and private key */
-    UA_ByteString certificate;
-    certificate.length = CERT_PEM_LENGTH;
-    certificate.data = CERT_PEM_DATA;
-    ck_assert_uint_ne(certificate.length, 0);
-
-    UA_ByteString privateKey;
-    privateKey.length = KEY_PEM_LENGTH;
-    privateKey.data = KEY_PEM_DATA;
-    ck_assert_uint_ne(privateKey.length, 0);
-#endif
 
     /* The Get endpoint (discovery service) is done with
      * security mode as none to see the server's capability
@@ -224,21 +199,12 @@ START_TEST(encryption_connect_pem) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-#if 0 /* FIXME :HUK TODO */
-    UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
-                                         trustList, trustListSize,
-                                         revocationList, revocationListSize);
-#endif
     UA_ClientConfig_setDefaultEncryption(cc, NULL);
-    cc->securityPolicyUri =
-        UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
-    ck_assert(client != NULL);
 
-#if 0
-    for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
-        UA_ByteString_clear(&trustList[deleteCount]);
-    }
-#endif
+    cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
+    cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
+    cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
+    ck_assert(client != NULL);
 
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");

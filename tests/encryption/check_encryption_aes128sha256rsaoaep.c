@@ -228,13 +228,8 @@ START_TEST(encryption_connect_pem) {
     UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
                                          trustList, trustListSize,
                                          revocationList, revocationListSize);
-<<<<<<< HEAD
-    cc->certificateVerification.clear(&cc->certificateVerification);
-    UA_CertificateVerification_AcceptAll(&cc->certificateVerification);
-=======
     UA_ClientConfig_setDefaultEncryption(cc, NULL);
 #endif
->>>>>>> 1e9d0a692 (add endpoint to opc ua client)
     cc->securityPolicyUri =
         UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");
     ck_assert(client != NULL);
