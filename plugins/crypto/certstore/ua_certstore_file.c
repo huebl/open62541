@@ -368,6 +368,7 @@ loadCertificate_file(UA_PKIStore *pkiStore, const UA_NodeId certType, UA_ByteStr
         goto cleanup;
     }
 
+    printf("READ FILE  %s\n", filename);
     retval = readFileToByteString(filename, cert);
 
 cleanup:

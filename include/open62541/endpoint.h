@@ -18,7 +18,7 @@ struct UA_Endpoint {
     UA_Boolean allowNone;
     UA_Boolean allowSign;
     UA_Boolean allowSignAndEncrypt;
-    UA_String endpointUrl;
+    UA_String endpointUrl; /* const EndpointDescription* - Nicht verwendet: securityMode, serverCert*/
 };
 
 UA_StatusCode

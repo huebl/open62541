@@ -206,6 +206,16 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
                                           &endpointDescriptionNone,
                                           UA_MESSAGESECURITYMODE_NONE);
 
+        size_t idx = 0;
+        for (idx = 0; idx < endpoint->endpointUrl.length; idx++) {
+        	printf("%c", endpoint->endpointUrl.data[idx]);
+        }
+        printf("\n");
+        for (idx = 0; idx < endpoint->securityPolicy->policyUri.length; idx++) {
+        	printf("%c", endpoint->securityPolicy->policyUri.data[idx]);
+        }
+        printf("\n");
+
         // Always match if no profile uris supplied.
         // Otherwise, only match if at least one uri is contained in the description
         UA_Boolean matchingProfileUri = true;
@@ -221,6 +231,7 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
             continue;
 
         if(endpoint->allowSign) {
+                             /* FIXME: HUK ..copyEndpointDescription */
             retval |= UA_Endpoint_toEndpointDescription(endpoint,
                                                   &response->endpoints[pos++],
                                                   UA_MESSAGESECURITYMODE_SIGN);
@@ -235,11 +246,14 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
         } else {
             UA_EndpointDescription_clear(&endpointDescriptionNone);
         }
+
         if(retval != UA_STATUSCODE_GOOD) {
+        	printf("aaaaaaaaaaaaaaa %d\n", retval);
             goto error;
         }
     }
 
+    printf("XXXXAAAAA\n");
     UA_assert(pos == endpointDescriptionsSize);
     response->endpointsSize = endpointDescriptionsSize;
     return;

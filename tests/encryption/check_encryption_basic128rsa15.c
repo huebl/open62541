@@ -39,13 +39,18 @@ static void setup(void) {
     UA_StatusCode ret;
 
     /* Save certificate and private key in pki store */
-     UA_ByteString certificate;
-     certificate.length = server_cert_der_len;
-     certificate.data = server_cert_der;
+    UA_ByteString certificate;
+    certificate.length = server_cert_der_len;
+    certificate.data = server_cert_der;
 
-     UA_ByteString privateKey;
-     privateKey.length = server_key_der_len;
-     privateKey.data = server_key_der;
+    UA_ByteString privateKey;
+    privateKey.length = server_key_der_len;
+    privateKey.data = server_key_der;
+
+    server = UA_Server_new();
+    UA_ServerConfig *config = UA_Server_getConfig(server);
+    ret = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+    ck_assert(ret == UA_STATUSCODE_GOOD);
 
  	UA_ServerConfig_PKIStore_erase(UA_ServerConfig_PKIStore_getDefault(server));
  	UA_ServerConfig_PKIStore_storeCertificate(
@@ -76,11 +81,6 @@ static void setup(void) {
  		0, NULL,
  		0, NULL
  	);
-
-    server = UA_Server_new();
-    UA_ServerConfig *config = UA_Server_getConfig(server);
-    ret = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
-    ck_assert(ret == UA_STATUSCODE_GOOD);
 
     /* Set the attributes used in the certificate */
     UA_String_clear(&config->applicationDescription.applicationUri);
@@ -136,13 +136,13 @@ START_TEST(encryption_connect) {
 
     /* Secure client initialization */
     client = UA_Client_new();
+    ck_assert(client != NULL);
     UA_ClientConfig *cc = UA_Client_getConfig(client);
     UA_ClientConfig_setDefaultEncryption(cc, NULL);
 
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
-    ck_assert(client != NULL);
 
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
