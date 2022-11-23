@@ -5,6 +5,7 @@
  *    Copyright 2022 (c) Kai Huebl
  */
 
+#include <open62541/nodeids.h>
 #include <open62541/plugin/log_stdout.h>
 #include <open62541/plugin/certstore_default.h>
 #include <open62541/types.h>
@@ -273,17 +274,17 @@ START_TEST(certstore_create) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
 	/* Check NULL pointer parameter */
-	retval = UA_PKIStore_File(NULL, NULL);
+	retval = UA_PKIStore_File(NULL, NULL, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
-	retval = UA_PKIStore_File(&pkiStore, NULL);
+	retval = UA_PKIStore_File(&pkiStore, NULL, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
-	retval = UA_PKIStore_File(NULL, &certificateGroupId);
+	retval = UA_PKIStore_File(NULL, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
-	certificateGroupId = UA_NODEID("ns=0;i=4711");
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId);
+	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 }
 END_TEST
@@ -294,8 +295,8 @@ START_TEST(store_and_read_certificate) {
 	UA_NodeId certificateTypeId;
 
 	/* Init PKI store */
-	certificateGroupId = UA_NODEID("ns=0;i=4711");
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId);
+	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* write certificate */
@@ -326,8 +327,8 @@ START_TEST(store_and_read_privatekey) {
 	UA_NodeId certificateTypeId;
 
 	/* Init PKI store */
-	certificateGroupId = UA_NODEID("ns=0;i=4711");
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId);
+	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* write private key */
@@ -356,8 +357,8 @@ START_TEST(store_and_read_trustList) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
 	/* Init PKI store */
-	certificateGroupId = UA_NODEID("ns=0;i=4711");
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId);
+	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Read empty trust list */
@@ -451,8 +452,8 @@ START_TEST(store_and_read_rejectedList) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
 	/* Init PKI store */
-	certificateGroupId = UA_NODEID("ns=0;i=4711");
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId);
+	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
+	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Read empty rejected list */

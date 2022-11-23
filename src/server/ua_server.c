@@ -37,6 +37,7 @@
 #include <valgrind/memcheck.h>
 #endif
 
+#include "open62541/server_config_default.h"
 #include "open62541/plugin/pki_default.h"
 
 #define STARTCHANNELID 1
@@ -501,6 +502,8 @@ UA_Server_updateCertificate(UA_Server *server,
         	/* Load local certificate */
         	UA_ByteString localCertificate;
         	UA_PKIStore* pkiStore = entry->channel.endpoint->pkiStore;
+
+        	/* FIXME: HUK pkiStore->certificateGroupId ist flasch -> cert type id */
         	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
 
         	/* Compare certificates and delete secure channel if necessary */
@@ -1062,47 +1065,47 @@ createSigningRequest(UA_Server *server,
                                 const UA_NodeId *objectId, void *objectContext,
                                 size_t inputSize, const UA_Variant *input,
                                 size_t outputSize, UA_Variant *output) {
-	UA_String *subject;
-	UA_ByteString *entropy;
 	UA_ByteString *csr;
 
-	/* Input arg 1: CertificateGroup object's certificateGroupId, NULL or DefaultApplicationGroup */
-	/* Others not yet suported */
-	UA_NodeId *id;
-	id = (UA_NodeId *)input[0].data;
-	UA_NodeId applDefault = UA_NODEID_NUMERIC(0, UA_NS0ID_CERTIFICATEGROUPFOLDERTYPE_DEFAULTAPPLICATIONGROUP);
-	if ((id != NULL) && (id->identifier.numeric != applDefault.identifier.numeric)) {
-	    return UA_STATUSCODE_BADINVALIDARGUMENT;
-	}
+	/* Input arg 1: CertificateGroup object's certificateGroupId */
+	UA_NodeId* certificateGroupId = (UA_NodeId *)input[0].data;
 
 	/* Input arg 2: CertificateTypes Property's certificateTypeId, not yet implemented */
-	/* TODO */
+	UA_NodeId* certificateTypeId = (UA_NodeId *)input[1].data;
 
 	/* Input arg 3: The subject name to use in the Certificate Request, can be NULL or empty */
-	subject = (UA_String *)input[2].data;
+	UA_String* subject = (UA_String *)input[2].data;
 
 	/* Input arg 4: regenerateKey should be false (true not yet implemented) */
 	/* TODO */
 
 	/* Input arg 5: Nonce, additional entropy, can be NULL or empty, if set at least 32 bytes */
-	entropy = (UA_ByteString *)input[4].data;
+	UA_ByteString* entropy = (UA_ByteString *)input[4].data;
 	if ((entropy != NULL) && (entropy->length != 0) && (entropy->length < 32)) {
 	    return UA_STATUSCODE_BADINVALIDARGUMENT;
 	}
 
+	/* Find PKI Store */
+	UA_PKIStore* pkiStore = UA_ServerConfig_PKIStore_get(server, certificateGroupId);
+	if (pkiStore == NULL) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
 	/* Build the CSR */
-	UA_CertificateManager *cm = &server->config.certificateManager;
-	if (cm->createCertificateSigningRequest == NULL || cm->keyAndCertContext == NULL) {
+	UA_CertificateManager* certificateManager = &server->config.certificateManager;
+	if (certificateManager->createCertificateSigningRequest == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
 	}
-	UA_StatusCode ret = cm->createCertificateSigningRequest(cm, subject, entropy, &csr);
+
+	UA_StatusCode ret = certificateManager->createCertificateSigningRequest(
+		certificateManager, pkiStore, *certificateTypeId, subject, entropy, &csr
+	);
 	if (ret != UA_STATUSCODE_GOOD) {
 	    return ret;
 	}
 
 	/* Output arg, the PKCS #10 DER encoded Certificate Request (CSR) */
 	UA_Variant_setScalar(output, csr, &UA_TYPES[UA_TYPES_BYTESTRING]);
-
 	return UA_STATUSCODE_GOOD;
 }
 
@@ -1131,10 +1134,8 @@ getRejectedList(UA_Server *server,
 
 #ifdef UA_ENABLE_ENCRYPTION
 /* Setup the Certificate Manager */
-UA_EXPORT UA_StatusCode  /* FIXME: HUK ueberarbeiten */
-UA_ServerConfig_setupCertificateManager(UA_Server *server,
-                              const UA_ByteString *certificate,
-                              const UA_ByteString *privateKey) {
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_setupCertificateManager(UA_Server *server) {
     if (server == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }

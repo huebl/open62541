@@ -400,9 +400,7 @@ getRejectedList(UA_Server *server,
 #ifdef UA_ENABLE_ENCRYPTION
 /* Setup the Certificate Manager */
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_setupCertificateManager(UA_Server *server,
-                              const UA_ByteString *certificate,
-                              const UA_ByteString *privateKey);
+UA_ServerConfig_setupCertificateManager(UA_Server *server);
 #endif
 
 void UA_EXPORT

@@ -60,7 +60,7 @@ static void setup(void) {
     UA_ServerConfig *config = UA_Server_getConfig(server);
     UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
 
- 	UA_ServerConfig_PKIStore_erase(UA_ServerConfig_PKIStore_getDefault(server));
+ 	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
  	UA_ServerConfig_PKIStore_storeCertificate(
  		UA_ServerConfig_PKIStore_getDefault(server),
  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),

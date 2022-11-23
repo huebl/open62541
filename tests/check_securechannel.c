@@ -47,7 +47,7 @@ setup_pkiStore(void) {
     pkiStore = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
 
     /* Create File PKI Store */
-    UA_PKIStore_File(pkiStore, &certificateGroupId);
+    UA_PKIStore_File(pkiStore, &certificateGroupId, NULL, NULL);
 }
 
 static void

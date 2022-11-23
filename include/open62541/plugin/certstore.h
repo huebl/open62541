@@ -42,6 +42,8 @@ struct UA_PKIStore {
 
     UA_StatusCode (*clear)(UA_PKIStore *pkiStore);
 
+    UA_StatusCode (*removeContentAll)(UA_PKIStore *pkiStore);
+
     void *context;
 };
 

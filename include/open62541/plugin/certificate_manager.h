@@ -77,10 +77,14 @@ struct UA_CertificateManager {
     /* Reloads the trust list from storage, discarding all unsaved changes. */
     UA_StatusCode (*reloadTrustList)(void *certificateManager);
 
-    UA_StatusCode (*createCertificateSigningRequest)(const UA_CertificateManager *cm,
-                                                     const UA_String *subject,
-                                                     const UA_ByteString *entropy,
-                                                     UA_ByteString **csr);
+    UA_StatusCode (*createCertificateSigningRequest)(
+    	UA_CertificateManager *certificateManager,
+		UA_PKIStore* pkiStore,
+		const UA_NodeId certificateTypeId,
+        const UA_String *subject,
+        const UA_ByteString *entropy,
+        UA_ByteString **csr
+	);
 
     /* Delete the certificate verification context */
     void (*clear)(UA_CertificateManager *certificateManager);

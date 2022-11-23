@@ -500,7 +500,7 @@ UA_ServerConfig_setMinimalCustomBuffer(UA_ServerConfig *config, UA_UInt16 portNu
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
 
-    retval = UA_PKIStore_File(&config->pkiStores[0], &certificateGroupId);
+    retval = UA_PKIStore_File(&config->pkiStores[0], &certificateGroupId, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_clean(config);
         return retval;
@@ -687,7 +687,7 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
     UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
     conf->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], &certType);
+    retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], &certType, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
     	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
     	    "Could not create default PKIStore with error code %s",
@@ -745,48 +745,47 @@ UA_ServerConfig_PKIStore_getDefault(UA_Server* server)
 	return &config->pkiStores[0];
 }
 
+UA_EXPORT UA_PKIStore*
+UA_ServerConfig_PKIStore_get(UA_Server* server, const UA_NodeId* certificateGroupId)
+{
+	/* Check parameter */
+	if (server == NULL) {
+		return NULL;
+	}
+
+	/* Get server config */
+	UA_ServerConfig* config = UA_Server_getConfig(server);
+	if (config == NULL || config->pkiStores == NULL) {
+		return NULL;
+	}
+
+	/* find PKI Store */
+	if (certificateGroupId == NULL) {
+		return UA_ServerConfig_PKIStore_getDefault(server);
+	}
+
+	size_t idx = 0;
+	for (idx = 0; idx < config->pkiStoresSize; idx++) {
+		UA_PKIStore* pkiStore = &config->pkiStores[idx];
+		if (UA_NodeId_equal(certificateGroupId, &pkiStore->certificateGroupId)) {
+			return pkiStore;
+		}
+	}
+
+	return NULL;
+}
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_erase(UA_PKIStore *pkiStore)
+UA_ServerConfig_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
 {
-	UA_StatusCode ret = UA_STATUSCODE_GOOD;
-
 	/* Check parameter */
 	if (pkiStore == NULL) {
 		return UA_STATUSCODE_BADINTERNALERROR;
 	}
 
-	/* Delete trust list data */
-	UA_TrustListDataType trustListData;
-	memset((char*)&trustListData, 0x00, sizeof(UA_TrustListDataType));
-	trustListData.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES ||
-			                       UA_TRUSTLISTMASKS_TRUSTEDCRLS ||
-								   UA_TRUSTLISTMASKS_ISSUERCERTIFICATES ||
-								   UA_TRUSTLISTMASKS_ISSUERCRLS;
-	ret = pkiStore->storeTrustList(pkiStore, &trustListData);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
+	/* Remove content from PKI Store */
+	return pkiStore->removeContentAll(pkiStore);
 
-	/* Delete rejected list data */
-	ret = pkiStore->storeRejectedList(pkiStore, NULL, 0);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-
-	/* Delete certificates */
-	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-	ret = pkiStore->storeCertificate(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-
-	/* Delete private keys */
-	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-	ret = pkiStore->storePrivateKey(pkiStore, UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE), NULL);
-	if (ret != UA_STATUSCODE_GOOD) return ret;
-
-	return ret;
 }
 
 UA_EXPORT UA_StatusCode
@@ -989,7 +988,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
 
-    retval = UA_PKIStore_File(&config->pkiStores[0], &config->certificateGroupId);
+    retval = UA_PKIStore_File(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
         /* UA_ServerConfig_clean(config); */
         return retval;

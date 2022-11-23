@@ -290,12 +290,9 @@ mbedtls_decrypt_rsaOaep(ChannelContext_mbedtls *cc,
                                                      NULL, 0, &outLength,
                                                      data->data + inOffset,
                                                      buf, 512);
-        /* FIXME: HUK TODO */
-        printf("XXXXXXXXXXXXXXXXX %d\n", mbedErr);
-
 #else
         int mbedErr = mbedtls_rsa_rsaes_oaep_decrypt(rsaContext, mbedtls_ctr_drbg_random,
-                                                     drbgContext,
+        											 &cc->policyContext->drbgContext,
                                                      NULL, 0, &outLength,
                                                      data->data + inOffset,
                                                      buf, 512);

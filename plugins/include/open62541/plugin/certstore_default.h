@@ -13,6 +13,14 @@
 #include <open62541/plugin/certstore.h>
 
 UA_StatusCode
-UA_PKIStore_File(UA_PKIStore *pkiStore, UA_NodeId *certificateGroupId);
+UA_PKIStore_File(
+	UA_PKIStore *pkiStore,
+	UA_NodeId *certificateGroupId,
+	char* pkiDir,
+	UA_StatusCode (*makeCertThumbprint)(
+		const UA_ByteString* certificate,
+		UA_ByteString* thumbprint
+	)
+);
 
 #endif //OPEN62541_CERTSTORE_DEFAULT_H

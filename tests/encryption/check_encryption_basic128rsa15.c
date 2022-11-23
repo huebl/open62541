@@ -52,7 +52,7 @@ static void setup(void) {
     ret = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
     ck_assert(ret == UA_STATUSCODE_GOOD);
 
- 	UA_ServerConfig_PKIStore_erase(UA_ServerConfig_PKIStore_getDefault(server));
+ 	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
  	UA_ServerConfig_PKIStore_storeCertificate(
  		UA_ServerConfig_PKIStore_getDefault(server),
  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),

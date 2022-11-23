@@ -10,7 +10,6 @@
 #include "encryption/certificates.h"
 
 START_TEST(Server_add_configuration_capabilities) {
-#if 0
 	static char validServerConfigCapabilities[][16] = {
 	    "NA", "DA", "HD", "AC", "HE", "GDS", "LDS", "DI", "ADI", "FDI",
 	    "FDIC", "PLC", "S95", "RCP", "PUB", "AUTOID", "MDIS", "CNC", "PLK", "FDT",
@@ -90,13 +89,10 @@ START_TEST(Server_add_configuration_capabilities) {
     UA_String_clear(&strEmpty);
     UA_Variant_clear(&capabilities);
     UA_Server_delete(server);
-
-#endif
 }
 END_TEST
 
 START_TEST(Server_add_configuration_keyformats) {
-#if 0
     static char validServerConfigKeyFormats[][4] = {"PFX", "PEM"};
 
     const size_t validServerConfigKeyFormatsCount = sizeof(validServerConfigKeyFormats)/sizeof(validServerConfigKeyFormats[0]);
@@ -170,12 +166,10 @@ START_TEST(Server_add_configuration_keyformats) {
     UA_String_clear(&strEmpty);
     UA_Variant_clear(&keyFormats);
     UA_Server_delete(server);
-#endif
 }
 END_TEST
 
 START_TEST(Server_set_max_trust_list_size) {
-#if 0
     const UA_UInt32 cSize = 4711UL;
 
     UA_Server *server = UA_Server_new();
@@ -206,7 +200,6 @@ START_TEST(Server_set_max_trust_list_size) {
 
     UA_Variant_clear(&sizeVar);
     UA_Server_delete(server);
-#endif
 }
 END_TEST
 
@@ -409,35 +402,43 @@ UA_Byte CERT_DER_DATA_3[] = {
 #define CERT_DER_LENGTH_3 sizeof(CERT_DER_DATA_3)
 
 START_TEST(Server_create_csr) {
-#if 0
+    /* Load certificate and private key */
+    UA_ByteString certificate;
+    certificate.length = server_cert_der_len;
+    certificate.data = server_cert_der;
+
+    UA_ByteString privateKey;
+    privateKey.length = server_key_der_len;
+    privateKey.data = server_key_der;
+
 	UA_Server *server = UA_Server_new();
 	UA_ServerConfig *config = UA_Server_getConfig(server);
+	UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+
+ 	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
+ 	UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+ 	UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+ 	UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
+ 	UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
 
 	UA_StatusCode retval;
 	UA_StatusCode_init(&retval);
-
-	UA_ByteString certificate = UA_BYTESTRING_NULL;
-	UA_ByteString privateKey = UA_BYTESTRING_NULL;
-
-	UA_ServerConfig_setDefault(config);
-
-	/* Try to setup Certificate Manager with null pointer arguments */
-	retval = UA_ServerConfig_setupCertificateManager(server, NULL, NULL);
-	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-
-	/* Try to setup Certificate Manager with empty arguments */
-	retval = UA_ServerConfig_setupCertificateManager(server, &certificate, &privateKey);
-	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-
-	/* Set the certificate and private key data from encryption/certificates.h */
-	certificate.length = CERT_DER_LENGTH;
-	certificate.data = CERT_DER_DATA;
-	privateKey.length = KEY_DER_LENGTH;
-	privateKey.data = KEY_DER_DATA;
-
-	/* Setup Certificate Manager with valid arguments */
-	retval = UA_ServerConfig_setupCertificateManager(server, &certificate, &privateKey);
-	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Create a certificate Signing Requests in DER format, stored in a byte string */
 	UA_String subject = UA_String_fromChars("CN=Cert/O=mbedTLS/C=DE");
@@ -447,19 +448,30 @@ START_TEST(Server_create_csr) {
 	csr = NULL;
 
 	/* Certificate Manager is NULL, invalid */
-	retval = config->certificateManager.createCertificateSigningRequest(NULL, NULL, NULL, &csr);
+	retval = config->certificateManager.createCertificateSigningRequest(
+		NULL, NULL, UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE), NULL, NULL, &csr);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
 
 	/* Subject and additional entropy  are NULL, use subject from certificate, ok */
-	retval = config->certificateManager.createCertificateSigningRequest(&config->certificateManager,
-			                                                            NULL, NULL, &csr);
+	retval = config->certificateManager.createCertificateSigningRequest(
+		&config->certificateManager,
+		UA_ServerConfig_PKIStore_getDefault(server),
+		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+		NULL, NULL, &csr
+	);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	UA_ByteString_clear(csr);
 	csr = NULL;
 
 	/* Create CSR with subject and additional entropy, ok */
-	retval = config->certificateManager.createCertificateSigningRequest(&config->certificateManager,
-	                                                                       &subject, &entropy, &csr);
+	retval = config->certificateManager.createCertificateSigningRequest(
+		&config->certificateManager,
+		UA_ServerConfig_PKIStore_getDefault(server),
+		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+		&subject,
+		&entropy,
+		&csr
+	);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	UA_ByteString_clear(csr);
 	csr = NULL;
@@ -470,12 +482,10 @@ START_TEST(Server_create_csr) {
 	ck_assert_ptr_eq(config->certificateManager.keyAndCertContext, NULL);
 
 	UA_Server_delete(server);
-#endif
 }
 END_TEST
 
 START_TEST(Server_rejected_list) {
-#if 0
 	UA_Server *server = UA_Server_new();
 	UA_ServerConfig *config = UA_Server_getConfig(server);
 
@@ -490,11 +500,10 @@ START_TEST(Server_rejected_list) {
     certForConfig.length = CERT_DER_LENGTH;
     keyForConfig.data = KEY_DER_DATA;
     keyForConfig.length = KEY_DER_LENGTH;
-    retval = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840,
-                                                            &certForConfig, &keyForConfig,
-                                                            NULL, 0,
-                                                            NULL, 0,
-                                                            NULL, 0);
+
+    retval = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
+    ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
     UA_ByteString certificate = UA_BYTESTRING_NULL;
     UA_ByteString_init(&certificate);
 
@@ -504,15 +513,15 @@ START_TEST(Server_rejected_list) {
     /* Check null pointer argument handling */
     retval = rejectedList_add_for_testing(NULL, NULL);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-    retval = rejectedList_get(NULL, &rlistsize, config->certificateVerification.context);
+    retval = rejectedList_get(NULL, &rlistsize, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-    retval = rejectedList_get(&rlist, NULL, config->certificateVerification.context);
+    retval = rejectedList_get(&rlist, NULL, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
 
     /* Get empty list */
     rlist = NULL;
     rlistsize = 0;
-    retval = rejectedList_get(&rlist, &rlistsize, config->certificateVerification.context);
+    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_uint_eq(rlistsize, 0);
     ck_assert(rlist != NULL);
@@ -523,28 +532,28 @@ START_TEST(Server_rejected_list) {
     certificate.data = CERT_DER_DATA;
 
     /* Add certificate to the rejected list */
-    retval = rejectedList_add_for_testing(&certificate, config->certificateVerification.context);
+    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Try to add the same certificate, should be ignored */
-    retval = rejectedList_add_for_testing(&certificate, config->certificateVerification.context);
+    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Add another certificate */
     certificate.length = CERT_DER_LENGTH_1;
     certificate.data = CERT_DER_DATA_1;
-    retval = rejectedList_add_for_testing(&certificate, config->certificateVerification.context);
+    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* And one more certificate */
     certificate.length = CERT_DER_LENGTH_2;
     certificate.data = CERT_DER_DATA_2;
-    retval = rejectedList_add_for_testing(&certificate, config->certificateVerification.context);
+    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     rlist = NULL;
     rlistsize = 0;
-    retval = rejectedList_get(&rlist, &rlistsize, config->certificateVerification.context);
+    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(rlist != NULL);
     ck_assert_uint_eq(rlistsize, 3);
@@ -571,12 +580,12 @@ START_TEST(Server_rejected_list) {
     /* Add the 4th certificate */
     certificate.length = CERT_DER_LENGTH_3;
     certificate.data = CERT_DER_DATA_3;
-    retval = rejectedList_add_for_testing(&certificate, config->certificateVerification.context);
+    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Check for correct overwriting of the first stored certificate
        due to the list size limit of 3 set in rejectedList_add_for_testing */
-    retval = rejectedList_get(&rlist, &rlistsize, config->certificateVerification.context);
+    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(rlist != NULL);
     ck_assert_uint_eq(rlistsize, 3); /* only 3 instead of 4 because of overwriting */
@@ -589,13 +598,7 @@ START_TEST(Server_rejected_list) {
     /* free list */
     UA_Array_delete(rlist, rlistsize, &UA_TYPES[UA_TYPES_BYTESTRING]);
 
-    /* free internal rejected certificates list using clear function of CertificateVerification */
-    ck_assert(config->certificateManager != NULL);
-    config->certificateVerification.clear(&config->certificateManager);
-    ck_assert(config->certificateManager == NULL);
-
     UA_Server_delete(server);
-#endif
 }
 END_TEST
 
