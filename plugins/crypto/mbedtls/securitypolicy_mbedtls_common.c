@@ -353,10 +353,15 @@ cleanup:
 }
 
 UA_StatusCode
-UA_mbedTLS_LoadLocalCertificate(const UA_SecurityPolicy *policy, UA_PKIStore *pkiStore, UA_ByteString *target) {
+UA_mbedTLS_LoadLocalCertificate(
+	const UA_SecurityPolicy *policy,
+	UA_PKIStore *pkiStore,
+	UA_ByteString *target
+) {
     UA_ByteString localCertificate;
     UA_ByteString_init(&localCertificate);
 
+    /* Load certificate from PKI Store */
     UA_StatusCode retval = pkiStore->loadCertificate(pkiStore, policy->certificateTypeId, &localCertificate);
     if(!UA_StatusCode_isGood(retval)) {
         return retval;

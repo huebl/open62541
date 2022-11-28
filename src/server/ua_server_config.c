@@ -99,6 +99,7 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
         config->pkiStores = NULL;
         config->pkiStoresSize = 0;
     }
+    config->rejectedListMethodMaxListSize = 0;
 
     /* Logger */
     if(config->logger.clear)

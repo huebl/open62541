@@ -109,7 +109,6 @@ san_mbedtls_san_list_entry_t* san_mbedtls_get_san_list_from_cert(const mbedtls_x
 
 		san_list_entry->san.type = type;
         memcpy(&san_list_entry->san.san.unstructured_name, &cur->buf, sizeof(cur->buf));
-
         if (san_list != NULL) san_list_entry->next = san_list;
         san_list = san_list_entry;
 
@@ -187,6 +186,29 @@ int san_mbedtls_set_san_list_to_csr(mbedtls_x509write_csr* req,
 
 	mbedtls_free(ext_buf);
 	return 1;
+}
+
+bool san_mbedtls_get_uniform_resource_identifier(
+	san_mbedtls_san_list_entry_t* san_list,
+	UA_String* uniform_resource_identifier
+)
+{
+	/* Check parameter */
+	if (san_list == NULL || uniform_resource_identifier == NULL) {
+		return false;
+	}
+
+	UA_String_init(uniform_resource_identifier);
+
+	const san_mbedtls_san_list_entry_t* cur = san_list;
+	while (cur != NULL) {
+		if (cur->san.type == MBEDTLS_X509_SAN_UNIFORM_RESOURCE_IDENTIFIER) {
+			uniform_resource_identifier->length = cur->san.san.unstructured_name.len;
+			uniform_resource_identifier->data =  cur->san.san.unstructured_name.p;
+			return true;
+		}
+	}
+	return false;
 }
 
 #endif

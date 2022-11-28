@@ -50,8 +50,9 @@ UA_Server_new(void) {
     memset(&config, 0, sizeof(UA_ServerConfig));
 
     UA_StatusCode res = setDefaultConfig(&config, 4840);
-    if(res != UA_STATUSCODE_GOOD)
+    if(res != UA_STATUSCODE_GOOD) {
         return NULL;
+    }
 
     return UA_Server_newWithConfig(&config);
 }
@@ -78,7 +79,7 @@ const UA_ConnectionConfig UA_ConnectionConfig_default = {
 #define PRODUCT_NAME "open62541 OPC UA Server"
 #define PRODUCT_URI "http://open62541.org"
 #define APPLICATION_NAME "open62541-based OPC UA Application"
-#define APPLICATION_URI "urn:unconfigured:application"
+#define APPLICATION_URI "urn:open62541.server.application"
 #define APPLICATION_URI_SERVER "urn:open62541.server.application"
 
 #define STRINGIFY(arg) #arg
@@ -178,10 +179,10 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     /* Networking */
     /* Set up the local ServerUrls. They are used during startup to initialize
      * the server sockets. */
-    UA_String serverUrls[3];
+    UA_String serverUrls[2];
     size_t serverUrlsSize = 0;
     char hostnamestr[256];
-    char serverUrlBuffer[3][512];
+    char serverUrlBuffer[2][512];
 
     if(portNumber == 0) {
         UA_LOG_WARNING(&conf->logger, UA_LOGCATEGORY_USERLAND,
@@ -220,11 +221,6 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
                         "opc.tcp://%s:%u", hostnamestr, portNumber);
             serverUrls[serverUrlsSize] = UA_STRING(serverUrlBuffer[1]);
             serverUrlsSize++;
-
-            UA_snprintf(serverUrlBuffer[2], sizeof(serverUrlBuffer[2]),
-                        "opc.tcp://localhost:%u", portNumber);
-            serverUrls[serverUrlsSize] = UA_STRING(serverUrlBuffer[2]);
-            serverUrlsSize++;
         }
 
         /* 3) Add to the config */
@@ -239,6 +235,7 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     /* Endpoints */
     conf->endpoints = NULL;
     conf->endpointsSize = 0;
+    conf->rejectedListMethodMaxListSize = 0;
 
     /* Certificate Verification that accepts every certificate. Can be
      * overwritten when the policy is specialized. */
@@ -417,7 +414,8 @@ UA_ServerConfig_addEndpoint(UA_ServerConfig *config,
 
     /* Populate the endpoint */
     for(size_t i = 1; i < config->serverUrlsSize; ++i) {
-        UA_StatusCode retval = UA_Endpoint_init(&config->endpoints[config->endpointsSize],
+    	UA_Endpoint_init(&config->endpoints[config->endpointsSize]);
+        UA_StatusCode retval = UA_Endpoint_setValues(&config->endpoints[config->endpointsSize],
                                                 &config->serverUrls[i],
                                                 pkiStore,
                                                 policy,
@@ -499,13 +497,15 @@ UA_ServerConfig_setMinimalCustomBuffer(UA_ServerConfig *config, UA_UInt16 portNu
         UA_ServerConfig_clean(config);
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
+    memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File(&config->pkiStores[0], &certificateGroupId, NULL, NULL);
+    retval = UA_PKIStore_File_create(&config->pkiStores[0], &certificateGroupId, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_clean(config);
         return retval;
     }
     config->pkiStoresSize++;
+    config->rejectedListMethodMaxListSize = 0;
 
     /* Initialize the Access Control plugin */
     retval = UA_AccessControl_default(config, true, NULL, NULL,
@@ -686,8 +686,13 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
     /* Create file pki store */
     UA_NodeId certType = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
     conf->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
+    if (conf->pkiStores == NULL) {
+    	UA_ServerConfig_clean(conf);
+    	return UA_STATUSCODE_BADOUTOFMEMORY;
+    }
+    memset((char*)conf->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File(&conf->pkiStores[conf->pkiStoresSize++], &certType, NULL, NULL);
+    retval = UA_PKIStore_File_create(&conf->pkiStores[conf->pkiStoresSize++], &certType, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
     	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
     	    "Could not create default PKIStore with error code %s",
@@ -746,6 +751,21 @@ UA_ServerConfig_PKIStore_getDefault(UA_Server* server)
 }
 
 UA_EXPORT UA_PKIStore*
+UA_ClientConfig_PKIStore_getDefault(UA_Client* client)
+{
+	if (client == NULL) {
+		return NULL;
+	}
+
+	UA_ClientConfig* config = UA_Client_getConfig(client);
+	if (config == NULL || &config->pkiStores[0] == NULL) {
+		return NULL;
+	}
+
+	return &config->pkiStores[0];
+}
+
+UA_EXPORT UA_PKIStore*
 UA_ServerConfig_PKIStore_get(UA_Server* server, const UA_NodeId* certificateGroupId)
 {
 	/* Check parameter */
@@ -775,8 +795,38 @@ UA_ServerConfig_PKIStore_get(UA_Server* server, const UA_NodeId* certificateGrou
 	return NULL;
 }
 
-UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
+UA_EXPORT UA_PKIStore*
+UA_ClientConfig_PKIStore_get(UA_Client* client, const UA_NodeId* certificateGroupId)
+{
+	/* Check parameter */
+	if (client == NULL) {
+		return NULL;
+	}
+
+	/* Get client config */
+	UA_ClientConfig* config = UA_Client_getConfig(client);
+	if (config == NULL || config->pkiStores == NULL) {
+		return NULL;
+	}
+
+	/* find PKI Store */
+	if (certificateGroupId == NULL) {
+		return UA_ClientConfig_PKIStore_getDefault(client);
+	}
+
+	size_t idx = 0;
+	for (idx = 0; idx < config->pkiStoresSize; idx++) {
+		UA_PKIStore* pkiStore = &config->pkiStores[idx];
+		if (UA_NodeId_equal(certificateGroupId, &pkiStore->certificateGroupId)) {
+			return pkiStore;
+		}
+	}
+
+	return NULL;
+}
+
+static UA_StatusCode
+UA_Config_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
 {
 	/* Check parameter */
 	if (pkiStore == NULL) {
@@ -789,7 +839,19 @@ UA_ServerConfig_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
+{
+	return UA_Config_PKIStore_removeContentAll(pkiStore);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_removeContentAll(UA_PKIStore *pkiStore)
+{
+	return UA_Config_PKIStore_removeContentAll(pkiStore);
+}
+
+static UA_StatusCode
+UA_Config_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
 		                         size_t trustedCertificatesSize,
                                  UA_ByteString *trustedCertificates,
                                  size_t trustedCrlsSize,
@@ -807,9 +869,9 @@ UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
 	/*Store trust list data */
 	UA_TrustListDataType trustListData;
 	memset((char*)&trustListData, 0x00, sizeof(UA_TrustListDataType));
-	trustListData.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES ||
-			                       UA_TRUSTLISTMASKS_TRUSTEDCRLS ||
-								   UA_TRUSTLISTMASKS_ISSUERCERTIFICATES ||
+	trustListData.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES +
+			                       UA_TRUSTLISTMASKS_TRUSTEDCRLS +
+								   UA_TRUSTLISTMASKS_ISSUERCERTIFICATES +
 								   UA_TRUSTLISTMASKS_ISSUERCRLS;
 	trustListData.trustedCertificatesSize = trustedCertificatesSize;
 	trustListData.trustedCertificates = trustedCertificates;
@@ -823,7 +885,47 @@ UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
+		                         size_t trustedCertificatesSize,
+                                 UA_ByteString *trustedCertificates,
+                                 size_t trustedCrlsSize,
+                                 UA_ByteString *trustedCrls,
+                                 size_t issuerCertificatesSize,
+                                 UA_ByteString *issuerCertificates,
+                                 size_t issuerCrlsSize,
+                                 UA_ByteString *issuerCrls)
+{
+	return UA_Config_PKIStore_storeTrustList(
+		pkiStore,
+        trustedCertificatesSize, trustedCertificates,
+        trustedCrlsSize, trustedCrls,
+        issuerCertificatesSize, issuerCertificates,
+        issuerCrlsSize, issuerCrls
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_storeTrustList(UA_PKIStore *pkiStore,
+		                         size_t trustedCertificatesSize,
+                                 UA_ByteString *trustedCertificates,
+                                 size_t trustedCrlsSize,
+                                 UA_ByteString *trustedCrls,
+                                 size_t issuerCertificatesSize,
+                                 UA_ByteString *issuerCertificates,
+                                 size_t issuerCrlsSize,
+                                 UA_ByteString *issuerCrls)
+{
+	return UA_Config_PKIStore_storeTrustList(
+		pkiStore,
+        trustedCertificatesSize, trustedCertificates,
+        trustedCrlsSize, trustedCrls,
+        issuerCertificatesSize, issuerCertificates,
+        issuerCrlsSize, issuerCrls
+	);
+}
+
+static UA_StatusCode
+UA_Config_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
                                  const UA_ByteString *rejectedList,
                                  size_t rejectedListSize)
 {
@@ -837,7 +939,58 @@ UA_ServerConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *rejectedList,
+                                 size_t rejectedListSize)
+{
+	return UA_Config_PKIStore_storeRejectList(
+	    pkiStore, rejectedList, rejectedListSize
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_storeRejectList(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *rejectedList,
+                                 size_t rejectedListSize)
+{
+	return UA_Config_PKIStore_storeRejectList(
+	    pkiStore, rejectedList, rejectedListSize
+	);
+}
+
+static UA_StatusCode
+UA_Config_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *certificate)
+{
+	/* Check parameter */
+	if (pkiStore == NULL || certificate == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/* Add rejected certificate to list data */
+	return pkiStore->appendRejectedList(pkiStore, certificate);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *certificate)
+{
+	return UA_Config_PKIStore_appendRejectCertificate(
+		pkiStore, certificate
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
+                                 const UA_ByteString *certificate)
+{
+	return UA_Config_PKIStore_appendRejectCertificate(
+		pkiStore, certificate
+	);
+}
+
+static UA_StatusCode
+UA_Config_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *cert)
 {
@@ -851,7 +1004,28 @@ UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
+UA_ServerConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *cert)
+{
+	return UA_Config_PKIStore_storeCertificate(
+		pkiStore, certType, cert
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *cert)
+{
+	return UA_Config_PKIStore_storeCertificate(
+		pkiStore, certType, cert
+	);
+}
+
+
+static UA_StatusCode
+UA_Config_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *privateKey)
 {
@@ -862,6 +1036,26 @@ UA_ServerConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
 
 	/*Store certificate data */
 	return pkiStore->storePrivateKey(pkiStore, certType, privateKey);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *privateKey)
+{
+	return UA_Config_PKIStore_storePrivateKey(
+		pkiStore, certType, privateKey
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
+		                         const UA_NodeId certType,
+								 const UA_ByteString *privateKey)
+{
+	return UA_Config_PKIStore_storePrivateKey(
+		pkiStore, certType, privateKey
+	);
 }
 
 /***************************/
@@ -924,26 +1118,17 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
     if(config->localConnectionConfig.recvBufferSize == 0)
         config->localConnectionConfig = UA_ConnectionConfig_default;
 
-    if(!config->certificateVerification.verifyCertificate) {
-        /* Certificate Verification that accepts every certificate. Can be
-         * overwritten when the policy is specialized. */
-        UA_CertificateVerification_AcceptAll(&config->certificateVerification);
-        UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_USERLAND,
-                       "AcceptAll Certificate Verification. "
-                       "Any remote certificate will be accepted.");
-    }
-
     config->sessionLocaleIds = NULL;
     config->sessionLocaleIds = 0;
 
-    config->localConnectionConfig = UA_ConnectionConfig_default;
-
-    /* Certificate Verification that accepts every certificate. Can be
-     * overwritten when the policy is specialized. */
-    UA_CertificateManager_AcceptAll(&config->certificateManager);
-    UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_USERLAND,
-                   "AcceptAll Certificate Verification. "
-                   "Any remote certificate will be accepted.");
+    if(!config->certificateManager.verifyCertificate) {
+    	/* Certificate Verification that accepts every certificate. Can be
+    	 * overwritten when the policy is specialized. */
+    	UA_CertificateManager_AcceptAll(&config->certificateManager);
+    	UA_LOG_WARNING(&config->logger, UA_LOGCATEGORY_USERLAND,
+                   	   "AcceptAll Certificate Verification. "
+                   	   "Any remote certificate will be accepted.");
+    	}
 
     /* With encryption enabled, the applicationUri needs to match the URI from
      * the certificate */
@@ -956,8 +1141,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
         config->securityPolicies = (UA_SecurityPolicy*)UA_malloc(sizeof(UA_SecurityPolicy));
         if(!config->securityPolicies)
             return UA_STATUSCODE_BADOUTOFMEMORY;
-        UA_StatusCode retval = UA_SecurityPolicy_None(config->securityPolicies,
-                                                      UA_BYTESTRING_NULL, &config->logger);
+        UA_StatusCode retval = UA_SecurityPolicy_None(config->securityPolicies, &config->logger);
         if(retval != UA_STATUSCODE_GOOD) {
             UA_free(config->securityPolicies);
             config->securityPolicies = NULL;
@@ -987,13 +1171,14 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
         /* UA_ServerConfig_clean(config); */
         return UA_STATUSCODE_BADOUTOFMEMORY;
     }
+    memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
+    retval = UA_PKIStore_File_create(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
     if(retval != UA_STATUSCODE_GOOD) {
         /* UA_ServerConfig_clean(config); */
         return retval;
     }
-    config->pkiStoresSize++;
+    config->pkiStoresSize = 1;
 
     config->customDataTypes = NULL;
     config->stateCallback = NULL;

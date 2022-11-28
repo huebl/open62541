@@ -953,8 +953,8 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/log.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/network.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/accesscontrol.h
-                     ${PROJECT_SOURCE_DIR}/include/open62541/plugin/certificate_manager.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/certstore.h
+                     ${PROJECT_SOURCE_DIR}/include/open62541/plugin/certificate_manager.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/securitypolicy.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/pubsub.h
                      ${PROJECT_SOURCE_DIR}/deps/ziptree.h
@@ -963,8 +963,8 @@ set(exported_headers ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/plugin/nodestore.h
                      ${historizing_exported_headers}
                      ${PROJECT_SOURCE_DIR}/include/open62541/server_pubsub.h
-                     ${PROJECT_SOURCE_DIR}/include/open62541/server.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/endpoint.h
+                     ${PROJECT_SOURCE_DIR}/include/open62541/server.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_highlevel.h
                      ${PROJECT_SOURCE_DIR}/include/open62541/client_subscriptions.h

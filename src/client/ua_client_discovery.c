@@ -144,8 +144,8 @@ UA_Client_findServersOnNetwork(UA_Client *client, const char *serverUrl,
 
     UA_Boolean connected = (client->channel.state == UA_SECURECHANNELSTATE_OPEN);
     /* Client is already connected to a different server */
-    if(connected && strncmp((const char*)client->config.endpoint.endpointUrl.data, serverUrl,
-                            client->config.endpoint.endpointUrl.length) != 0) {
+    if(connected && strncmp((const char*)client->config.endpointDescription.endpointUrl.data, serverUrl,
+                            client->config.endpointDescription.endpointUrl.length) != 0) {
         UA_UNLOCK(&client->clientMutex);
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }

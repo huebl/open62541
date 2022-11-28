@@ -30,32 +30,6 @@ _UA_BEGIN_DECLS
  * The lifecycle of the plugin is attached to a server or client config. The
  * ``clear`` method is called automatically when the config is destroyed. */
 
-<<<<<<< HEAD:include/open62541/plugin/pki.h
-struct UA_CertificateVerification;
-typedef struct UA_CertificateVerification UA_CertificateVerification;
-
-struct UA_CertificateVerification {
-    void *context;
-
-    /* Verify the certificate against the configured policies and trust chain. */
-    UA_StatusCode (*verifyCertificate)(void *verificationContext,
-                                       const UA_ByteString *certificate);
-
-    /* Verify that the certificate has the applicationURI in the subject name. */
-    UA_StatusCode (*verifyApplicationURI)(void *verificationContext,
-                                          const UA_ByteString *certificate,
-                                          const UA_String *applicationURI);
-
-    /* Get the expire date from certificate */
-    UA_StatusCode (*getExpirationDate)(UA_DateTime *expiryDateTime, 
-                                       UA_ByteString *certificate);
-
-    /* Delete the certificate verification context */
-    void (*clear)(UA_CertificateVerification *cv);
-};
-
-=======
->>>>>>> 5ff12bf1d (add certificate manager interface):include/open62541/plugin/certificate_manager.h
 struct UA_CertificateManager;
 typedef struct UA_CertificateManager UA_CertificateManager;
 
@@ -74,9 +48,14 @@ struct UA_CertificateManager {
                                           const UA_ByteString *certificate,
                                           const UA_String *applicationURI);
 
+    /* Get the expire date from certificate */
+    UA_StatusCode (*getExpirationDate)(UA_DateTime *expiryDateTime,
+                                       UA_ByteString *certificate);
+
     /* Reloads the trust list from storage, discarding all unsaved changes. */
     UA_StatusCode (*reloadTrustList)(void *certificateManager);
 
+    /* Create certificate signing request */
     UA_StatusCode (*createCertificateSigningRequest)(
     	UA_CertificateManager *certificateManager,
 		UA_PKIStore* pkiStore,

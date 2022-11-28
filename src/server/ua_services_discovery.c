@@ -178,6 +178,24 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
     // Duplicate Endpoints for each enabled security mode
     size_t endpointDescriptionsSize = 0;
     for(size_t i = 0; i < server->config.endpointsSize; ++i) {
+
+        // Always match if no profile uris supplied.
+        // Otherwise, only match if at least one uri is contained in the description
+        UA_Boolean matchingProfileUri = true;
+        for(size_t j = 0; j < request->profileUrisSize; ++j) {
+        	UA_Endpoint *endpoint = &server->config.endpoints[i];
+
+            if(UA_String_equal(&request->profileUris[j],
+                               &endpoint->endpointDescription->transportProfileUri)) {
+                matchingProfileUri = true;
+                break;
+            }
+            matchingProfileUri = false;
+        }
+        if(!matchingProfileUri) {
+            continue;
+        }
+
         if(server->config.endpoints[i].allowNone) {
             endpointDescriptionsSize++;
         }
@@ -200,24 +218,16 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
     UA_StatusCode retval = UA_STATUSCODE_GOOD;
     for(size_t i = 0; i < server->config.endpointsSize && pos < endpointDescriptionsSize; ++i) {
         UA_Endpoint *endpoint = &server->config.endpoints[i];
+
         UA_EndpointDescription endpointDescriptionNone;
         UA_EndpointDescription_init(&endpointDescriptionNone);
         UA_Endpoint_toEndpointDescription(endpoint,
                                           &endpointDescriptionNone,
                                           UA_MESSAGESECURITYMODE_NONE);
 
-        size_t idx = 0;
-        for (idx = 0; idx < endpoint->endpointUrl.length; idx++) {
-        	printf("%c", endpoint->endpointUrl.data[idx]);
-        }
-        printf("\n");
-        for (idx = 0; idx < endpoint->securityPolicy->policyUri.length; idx++) {
-        	printf("%c", endpoint->securityPolicy->policyUri.data[idx]);
-        }
-        printf("\n");
-
         // Always match if no profile uris supplied.
         // Otherwise, only match if at least one uri is contained in the description
+
         UA_Boolean matchingProfileUri = true;
         for(size_t j = 0; j < request->profileUrisSize; ++j) {
             if(UA_String_equal(&request->profileUris[j],
@@ -227,11 +237,11 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
             }
             matchingProfileUri = false;
         }
-        if(!matchingProfileUri)
+        if(!matchingProfileUri) {
             continue;
+        }
 
         if(endpoint->allowSign) {
-                             /* FIXME: HUK ..copyEndpointDescription */
             retval |= UA_Endpoint_toEndpointDescription(endpoint,
                                                   &response->endpoints[pos++],
                                                   UA_MESSAGESECURITYMODE_SIGN);
@@ -248,12 +258,10 @@ Service_GetEndpoints(UA_Server *server, UA_Session *session,
         }
 
         if(retval != UA_STATUSCODE_GOOD) {
-        	printf("aaaaaaaaaaaaaaa %d\n", retval);
             goto error;
         }
     }
 
-    printf("XXXXAAAAA\n");
     UA_assert(pos == endpointDescriptionsSize);
     response->endpointsSize = endpointDescriptionsSize;
     return;
@@ -411,7 +419,7 @@ process_RegisterServer(UA_Server *server, UA_Session *session,
         }
 
         LIST_INSERT_HEAD(&server->discoveryManager.registeredServers, registeredServer_entry, pointers);
-        UA_atomic_addSize(&server->discoveryManager.registeredServersSize, 1);
+        server->discoveryManager.registeredServersSize++;
     } else {
         UA_RegisteredServer_clear(&registeredServer_entry->registeredServer);
     }
@@ -598,6 +606,7 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
                                             UA_Double delayFirstRegisterMs,
                                             UA_UInt64 *periodicCallbackId) {
     UA_LOCK(&server->serviceMutex);
+
     /* No valid server URL */
     if(!discoveryServerUrl) {
         UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
@@ -606,8 +615,7 @@ UA_Server_addPeriodicServerRegisterCallback(UA_Server *server,
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
-
-    if (client->connection.state != UA_CONNECTIONSTATE_CLOSED) {
+    if(UA_SecureChannel_isConnected(&client->channel)) {
         UA_UNLOCK(&server->serviceMutex);
         return UA_STATUSCODE_BADINVALIDSTATE;
     }

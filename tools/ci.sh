@@ -251,6 +251,7 @@ function unit_tests_alarms {
 function unit_tests_encryption {
     mkdir -p build; cd build; rm -rf *
     cmake -DCMAKE_BUILD_TYPE=Debug \
+	  -DUA_NAMESPACE_ZERO=FULL \
           -DUA_BUILD_EXAMPLES=ON \
           -DUA_BUILD_UNIT_TESTS=ON \
           -DUA_ENABLE_DISCOVERY=ON \

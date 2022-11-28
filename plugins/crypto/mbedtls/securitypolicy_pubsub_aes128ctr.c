@@ -387,7 +387,6 @@ UA_PubSubSecurityPolicy_Aes128Ctr(UA_PubSubSecurityPolicy *policy,
             channelContext_setKeys_sp_pubsub_aes128ctr;
     policy->setMessageNonce = (UA_StatusCode(*)(void *, const UA_ByteString *))
         channelContext_setMessageNonce_sp_pubsub_aes128ctr;
-    policy->getLocalCertificate = UA_mbedTLS_LoadLocalCertificate;
     policy->clear = deleteMembers_sp_pubsub_aes128ctr;
     policy->policyContext = NULL;
 

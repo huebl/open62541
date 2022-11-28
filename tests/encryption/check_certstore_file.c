@@ -274,17 +274,17 @@ START_TEST(certstore_create) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
 	/* Check NULL pointer parameter */
-	retval = UA_PKIStore_File(NULL, NULL, NULL, NULL);
+	retval = UA_PKIStore_File_create(NULL, NULL, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
-	retval = UA_PKIStore_File(&pkiStore, NULL, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, NULL, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
-	retval = UA_PKIStore_File(NULL, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(NULL, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_BADINTERNALERROR);
 
 	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 }
 END_TEST
@@ -296,7 +296,7 @@ START_TEST(store_and_read_certificate) {
 
 	/* Init PKI store */
 	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* write certificate */
@@ -328,7 +328,7 @@ START_TEST(store_and_read_privatekey) {
 
 	/* Init PKI store */
 	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* write private key */
@@ -350,6 +350,8 @@ START_TEST(store_and_read_privatekey) {
 	/* Check content of certificate */
 	int cmpresult = memcmp(privateKeyOut.data, KEY_DER_DATA_1, KEY_DER_LENGTH_1);
 	ck_assert_int_eq(cmpresult, 0);
+
+	UA_PKIStore_File_clear(&pkiStore);
 }
 END_TEST
 
@@ -358,7 +360,7 @@ START_TEST(store_and_read_trustList) {
 
 	/* Init PKI store */
 	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Read empty trust list */
@@ -445,6 +447,8 @@ START_TEST(store_and_read_trustList) {
 	ck_assert_uint_eq(trustListOut.trustedCrlsSize, 0);
 	ck_assert_uint_eq(trustListOut.issuerCertificatesSize, 0);
 	ck_assert_uint_eq(trustListOut.issuerCrlsSize, 0);
+
+	UA_PKIStore_File_clear(&pkiStore);
 }
 END_TEST
 
@@ -453,7 +457,7 @@ START_TEST(store_and_read_rejectedList) {
 
 	/* Init PKI store */
 	certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-	retval = UA_PKIStore_File(&pkiStore, &certificateGroupId, NULL, NULL);
+	retval = UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Read empty rejected list */
@@ -480,25 +484,10 @@ START_TEST(store_and_read_rejectedList) {
 	retval = pkiStore.loadRejectedList(&pkiStore, &rejectedList, &rejectedListSize);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	ck_assert_uint_eq(rejectedListSize, 2);
-
-	if (rejectedList[0].length ==  CERT_DER_LENGTH_1) {
-		int cmpresult = memcmp(rejectedList[0].data, CERT_DER_DATA_1, CERT_DER_LENGTH_1);
-		ck_assert_int_eq(cmpresult, 0);
-		cmpresult = memcmp(rejectedList[1].data, CERT_DER_DATA_2, CERT_DER_LENGTH_2);
-		ck_assert_int_eq(cmpresult, 0);
-	}
-	else {
-		int cmpresult = memcmp(rejectedList[1].data, CERT_DER_DATA_1, CERT_DER_LENGTH_1);
-		ck_assert_int_eq(cmpresult, 0);
-		cmpresult = memcmp(rejectedList[0].data, CERT_DER_DATA_2, CERT_DER_LENGTH_2);
-		ck_assert_int_eq(cmpresult, 0);
-	}
-
 	UA_Array_delete(rejectedList, 2, &UA_TYPES[UA_TYPES_BYTESTRING]);
 
-	/* Append to rejected list */
+	/* Append already existing certificate to rejected list */
 	rejectedList = (UA_ByteString*)UA_Array_new(1, &UA_TYPES[UA_TYPES_BYTESTRING]);
-	rejectedListSize = 2;
 	rejectedList[0].data = CERT_DER_DATA_1;
 	rejectedList[0].length = CERT_DER_LENGTH_1;
 	retval = pkiStore.appendRejectedList(&pkiStore, rejectedList);
@@ -510,7 +499,7 @@ START_TEST(store_and_read_rejectedList) {
 	rejectedListSize = 0;
 	retval = pkiStore.loadRejectedList(&pkiStore, &rejectedList, &rejectedListSize);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
-	ck_assert_uint_eq(rejectedListSize, 3);
+	ck_assert_uint_eq(rejectedListSize, 2);
 	UA_Array_delete(rejectedList, 2, &UA_TYPES[UA_TYPES_BYTESTRING]);
 
 	/* Remove all rejected certificates */
@@ -524,6 +513,7 @@ START_TEST(store_and_read_rejectedList) {
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	ck_assert_uint_eq(rejectedListSize, 0);
 
+	UA_PKIStore_File_clear(&pkiStore);
 }
 END_TEST
 

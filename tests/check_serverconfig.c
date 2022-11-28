@@ -204,7 +204,7 @@ START_TEST(Server_set_max_trust_list_size) {
 END_TEST
 
 UA_Byte CERT_DER_DATA_1[] = {
-    0x30, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x64,
+    0x31, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x64,
     0x25, 0x4a, 0x45, 0x8a, 0x94, 0x09, 0x29, 0xa1, 0xcc, 0x83, 0xcb, 0x79, 0xfb, 0x75, 0xb5, 0x2c,
     0x0c, 0x70, 0x30, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
     0x05, 0x00, 0x30, 0x45, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x44,
@@ -270,7 +270,7 @@ UA_Byte CERT_DER_DATA_1[] = {
 #define CERT_DER_LENGTH_1 sizeof(CERT_DER_DATA_1)
 
 UA_Byte CERT_DER_DATA_2[] = {
-    0x30, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x14,
+    0x32, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x14,
     0xcd, 0x0e, 0x75, 0x70, 0x61, 0xe1, 0xe9, 0x64, 0xd8, 0x90, 0x8e, 0x57, 0x74, 0xfb, 0xd2, 0x23,
     0xfd, 0x3a, 0x90, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
     0x05, 0x00, 0x30, 0x45, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x44,
@@ -336,7 +336,7 @@ UA_Byte CERT_DER_DATA_2[] = {
 #define CERT_DER_LENGTH_2 sizeof(CERT_DER_DATA_2)
 
 UA_Byte CERT_DER_DATA_3[] = {
-    0x30, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x49,
+    0x33, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x49,
     0x4a, 0xb9, 0xda, 0xd8, 0xc5, 0x0e, 0x68, 0xb9, 0x73, 0xa4, 0xff, 0x89, 0xa1, 0x33, 0x41, 0x93,
     0x99, 0x6d, 0x97, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b,
     0x05, 0x00, 0x30, 0x45, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x44,
@@ -402,6 +402,8 @@ UA_Byte CERT_DER_DATA_3[] = {
 #define CERT_DER_LENGTH_3 sizeof(CERT_DER_DATA_3)
 
 START_TEST(Server_create_csr) {
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
     /* Load certificate and private key */
     UA_ByteString certificate;
     certificate.length = server_cert_der_len;
@@ -415,30 +417,36 @@ START_TEST(Server_create_csr) {
 	UA_ServerConfig *config = UA_Server_getConfig(server);
 	UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
 
- 	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
- 	UA_ServerConfig_PKIStore_storeCertificate(
- 		UA_ServerConfig_PKIStore_getDefault(server),
- 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
- 		&certificate
- 	);
- 	UA_ServerConfig_PKIStore_storeCertificate(
- 		UA_ServerConfig_PKIStore_getDefault(server),
- 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
- 		&certificate
- 	);
- 	UA_ServerConfig_PKIStore_storePrivateKey(
- 		UA_ServerConfig_PKIStore_getDefault(server),
- 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
- 		&privateKey
- 	);
- 	UA_ServerConfig_PKIStore_storePrivateKey(
- 		UA_ServerConfig_PKIStore_getDefault(server),
- 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
- 		&privateKey
- 	);
+ 	retval = UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
+ 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
-	UA_StatusCode retval;
-	UA_StatusCode_init(&retval);
+ 	retval = UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
+	retval = UA_ServerConfig_PKIStore_storeCertificate(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&certificate
+ 	);
+ 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
+ 	retval = UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
+ 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
+
+ 	retval = UA_ServerConfig_PKIStore_storePrivateKey(
+ 		UA_ServerConfig_PKIStore_getDefault(server),
+ 		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+ 		&privateKey
+ 	);
+ 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
 	/* Create a certificate Signing Requests in DER format, stored in a byte string */
 	UA_String subject = UA_String_fromChars("CN=Cert/O=mbedTLS/C=DE");
@@ -486,6 +494,10 @@ START_TEST(Server_create_csr) {
 END_TEST
 
 START_TEST(Server_rejected_list) {
+	size_t idx = 0;
+    bool found = false;
+    size_t len = 0;
+
 	UA_Server *server = UA_Server_new();
 	UA_ServerConfig *config = UA_Server_getConfig(server);
 
@@ -504,6 +516,8 @@ START_TEST(Server_rejected_list) {
     retval = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
+ 	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
+
     UA_ByteString certificate = UA_BYTESTRING_NULL;
     UA_ByteString_init(&certificate);
 
@@ -511,17 +525,19 @@ START_TEST(Server_rejected_list) {
     size_t rlistsize = 0;
 
     /* Check null pointer argument handling */
-    retval = rejectedList_add_for_testing(NULL, NULL);
+    retval = UA_Server_getRejectedList(NULL, &rlist, &rlistsize, 10);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-    retval = rejectedList_get(NULL, &rlistsize, &config->certificateManager);
+    retval = UA_Server_getRejectedList(server, NULL, &rlistsize, 10);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
-    retval = rejectedList_get(&rlist, NULL, &config->certificateManager);
+    retval = UA_Server_getRejectedList(server, &rlist, NULL, 10);
+    ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    retval = UA_Server_getRejectedList(server, &rlist, &rlistsize, 0);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
 
     /* Get empty list */
     rlist = NULL;
     rlistsize = 0;
-    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
+    retval = UA_Server_getRejectedList(server, &rlist, &rlistsize, 10);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert_uint_eq(rlistsize, 0);
     ck_assert(rlist != NULL);
@@ -532,47 +548,80 @@ START_TEST(Server_rejected_list) {
     certificate.data = CERT_DER_DATA;
 
     /* Add certificate to the rejected list */
-    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
+    retval = UA_ServerConfig_PKIStore_appendRejectCertificate(
+    	UA_ServerConfig_PKIStore_getDefault(server),
+		&certificate
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Try to add the same certificate, should be ignored */
-    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
+    retval = UA_ServerConfig_PKIStore_appendRejectCertificate(
+    	UA_ServerConfig_PKIStore_getDefault(server),
+		&certificate
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Add another certificate */
     certificate.length = CERT_DER_LENGTH_1;
     certificate.data = CERT_DER_DATA_1;
-    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
+    retval = UA_ServerConfig_PKIStore_appendRejectCertificate(
+    	UA_ServerConfig_PKIStore_getDefault(server),
+		&certificate
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* And one more certificate */
     certificate.length = CERT_DER_LENGTH_2;
     certificate.data = CERT_DER_DATA_2;
-    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
+    retval = UA_ServerConfig_PKIStore_appendRejectCertificate(
+    	UA_ServerConfig_PKIStore_getDefault(server),
+		&certificate
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     rlist = NULL;
     rlistsize = 0;
-    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
+    retval = UA_Server_getRejectedList(server, &rlist, &rlistsize, 10);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(rlist != NULL);
     ck_assert_uint_eq(rlistsize, 3);
 
     /* Check for the right data of the three stored certificates */
-    size_t len = rlist[0].length;
+    found = false;
+    len = 0;
+    for (idx = 0; idx < rlistsize; idx++) {
+    	len = rlist[idx].length;
+    	if (memcmp(rlist[idx].data, CERT_DER_DATA, CERT_DER_LENGTH) == 0) {
+    		found = true;
+    		break;
+    	}
+    }
+    ck_assert_int_eq(found, true);
     ck_assert_uint_eq(len, CERT_DER_LENGTH);
-    int cmpresult = memcmp(rlist[0].data, CERT_DER_DATA, CERT_DER_LENGTH);
-    ck_assert_int_eq(cmpresult, 0);
 
-    len = rlist[1].length;
+    found = false;
+    len = 0;
+    for (idx = 0; idx < rlistsize; idx++) {
+    	len = rlist[idx].length;
+    	if (memcmp(rlist[idx].data, CERT_DER_DATA_1, CERT_DER_LENGTH_1) == 0) {
+    		found = true;
+    		break;
+    	}
+    }
+    ck_assert_int_eq(found, true);
     ck_assert_uint_eq(len, CERT_DER_LENGTH_1);
-    cmpresult = memcmp(rlist[1].data, CERT_DER_DATA_1, CERT_DER_LENGTH_1);
-    ck_assert_int_eq(cmpresult, 0);
 
-    len = rlist[2].length;
+    found = false;
+    len = 0;
+    for (idx = 0; idx < rlistsize; idx++) {
+    	len = rlist[idx].length;
+    	if (memcmp(rlist[idx].data, CERT_DER_DATA_2, CERT_DER_LENGTH_2) == 0) {
+    		found = true;
+    		break;
+    	}
+    }
+    ck_assert_int_eq(found, true);
     ck_assert_uint_eq(len, CERT_DER_LENGTH_2);
-    cmpresult = memcmp(rlist[2].data, CERT_DER_DATA_2, CERT_DER_LENGTH_2);
-    ck_assert_int_eq(cmpresult, 0);
 
     /* free list */
     UA_Array_delete(rlist, rlistsize, &UA_TYPES[UA_TYPES_BYTESTRING]);
@@ -580,20 +629,17 @@ START_TEST(Server_rejected_list) {
     /* Add the 4th certificate */
     certificate.length = CERT_DER_LENGTH_3;
     certificate.data = CERT_DER_DATA_3;
-    retval = rejectedList_add_for_testing(&certificate, &config->certificateManager);
+    retval = UA_ServerConfig_PKIStore_appendRejectCertificate(
+    	UA_ServerConfig_PKIStore_getDefault(server),
+		&certificate
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
-    /* Check for correct overwriting of the first stored certificate
-       due to the list size limit of 3 set in rejectedList_add_for_testing */
-    retval = rejectedList_get(&rlist, &rlistsize, &config->certificateManager);
+   /* Get maximal 3 certificates from certifcate store */
+    retval = UA_Server_getRejectedList(server, &rlist, &rlistsize, 3);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(rlist != NULL);
-    ck_assert_uint_eq(rlistsize, 3); /* only 3 instead of 4 because of overwriting */
-    /* Check for the right overwritten data at first position of the list */
-    len = rlist[0].length;
-    ck_assert_uint_eq(len, CERT_DER_LENGTH_3);
-    cmpresult = memcmp(rlist[0].data, CERT_DER_DATA_3, CERT_DER_LENGTH_3);
-    ck_assert_int_eq(cmpresult, 0);
+    ck_assert_uint_eq(rlistsize, 3);
 
     /* free list */
     UA_Array_delete(rlist, rlistsize, &UA_TYPES[UA_TYPES_BYTESTRING]);

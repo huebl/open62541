@@ -73,6 +73,7 @@ set(test_plugin_sources
     ${PROJECT_SOURCE_DIR}/plugins/ua_nodestore_hashmap.c
     ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_securitypolicy_none.c
     ${PROJECT_SOURCE_DIR}/plugins/crypto/ua_pki_none.c
+    ${PROJECT_SOURCE_DIR}/plugins/crypto/certstore/ua_certstore_file.c
     ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_policy.c
     ${PROJECT_SOURCE_DIR}/tests/testing-plugins/testing_networklayers.c
     )
@@ -91,8 +92,7 @@ endif()
 if(UA_ENABLE_ENCRYPTION_MBEDTLS OR UA_ENABLE_PUBSUB_ENCRYPTION)
   list(INSERT test_plugin_sources 0
        ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.h
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.c
-       ${PROJECT_SOURCE_DIR}/plugins/crypto/certstore/ua_certstore_file.c)
+       ${PROJECT_SOURCE_DIR}/plugins/crypto/mbedtls/securitypolicy_mbedtls_common.c)
 endif()
 
 if(UA_ENABLE_PUBSUB_ENCRYPTION)
@@ -258,7 +258,6 @@ if(LINUX AND NOT UA_ENABLE_UNIT_TESTS_MEMCHECK)
     # Requires raw socket capability, currently not possible with valgrind
     ua_add_test(check_eventloop_eth.c)
 endif()
-ua_add_test(check_serverconfig.c)
 
 # Test Server
 
@@ -278,6 +277,10 @@ if (UA_MULTITHREADING GREATER_EQUAL 100)
     ua_add_test(multithreading/check_mt_readWriteDeleteCallback.c)
     ua_add_test(multithreading/check_mt_addDeleteObject.c)
     ua_add_test(server/check_server_asyncop.c)
+endif()
+
+if(UA_ENABLE_ENCRYPTION_MBEDTLS OR UA_ENABLE_ENCRYPTION_OPENSSL)
+  ua_add_test(check_serverconfig.c)
 endif()
 
 if(UA_ENABLE_METHODCALLS)

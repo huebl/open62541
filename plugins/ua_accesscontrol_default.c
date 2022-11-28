@@ -329,7 +329,6 @@ UA_AccessControl_default(UA_ServerConfig *config,
     if(verifyX509 && pkiStore) {
         context->verifyX509 = verifyX509;
         context->pkiStore = pkiStore;
-        /* FIXME: HUK memset(verifyX509, 0, sizeof(UA_CertificateManager)); */
     } else {
         context->verifyX509 = NULL;
         UA_LOG_INFO(&config->logger, UA_LOGCATEGORY_SERVER,

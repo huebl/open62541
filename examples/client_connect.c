@@ -100,8 +100,29 @@ int main(int argc, char *argv[]) {
     if(certfile) {
         UA_ByteString certificate = loadFile(certfile);
         UA_ByteString privateKey  = loadFile(keyfile);
-        UA_ClientConfig_setDefaultEncryption(cc, certificate, privateKey,
-                                             NULL, 0, NULL, 0);
+        UA_ClientConfig_setDefaultEncryption(cc, NULL);
+
+     	UA_ClientConfig_PKIStore_storeCertificate(
+     		UA_ClientConfig_PKIStore_getDefault(client),
+     		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+     		&certificate
+     	);
+     	UA_ClientConfig_PKIStore_storeCertificate(
+     		UA_ClientConfig_PKIStore_getDefault(client),
+     		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+     		&certificate
+     	);
+     	UA_ClientConfig_PKIStore_storePrivateKey(
+     		UA_ClientConfig_PKIStore_getDefault(client),
+     		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+     		&privateKey
+     	);
+     	UA_ClientConfig_PKIStore_storePrivateKey(
+     		UA_ClientConfig_PKIStore_getDefault(client),
+     		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+     		&privateKey
+     	);
+
         UA_ByteString_clear(&certificate);
         UA_ByteString_clear(&privateKey);
     } else {

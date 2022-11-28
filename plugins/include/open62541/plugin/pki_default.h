@@ -19,28 +19,11 @@ UA_CertificateManager_AcceptAll(UA_CertificateManager *cv);
 
 #ifdef UA_ENABLE_ENCRYPTION
 
-#ifdef __linux__ /* Linux only so far */
-
-#ifdef UA_ENABLE_CERT_REJECTED_DIR
-UA_EXPORT UA_StatusCode
-UA_CertificateManager_CertFolders(UA_CertificateManager *certificateManager,
-                                       const char *trustListFolder,
-                                       const char *issuerListFolder,
-                                       const char *revocationListFolder,
-                                       const char *rejectedListFolder);
-#else
-UA_EXPORT UA_StatusCode
-UA_CertificateManager_CertFolders(UA_CertificateManager *certificateManager,
-                                       const char *trustListFolder,
-                                       const char *issuerListFolder,
-                                       const char *revocationListFolder);
-#endif
-#endif
-
 /* Initialize the Certificate Manager, internal */
 UA_EXPORT UA_StatusCode
 UA_CertificateManager_create(UA_CertificateManager *certificateManager);
 
+#if 0 /* FIXME: HUK */
 /* Get the list of rejected certificates */
 UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,
                                UA_CertificateManager* certificateManager);
@@ -48,7 +31,7 @@ UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySiz
 /* Get the list of rejected certificates for testing purposes only */
 UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
                                            UA_CertificateManager* certificateManager);
-
+#endif
 #endif
 
 _UA_END_DECLS

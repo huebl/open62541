@@ -6,6 +6,7 @@
  */
 
 #include <open62541/nodeids.h>
+#include <open62541/util.h>
 #include <open62541/plugin/certstore.h>
 #include <open62541/plugin/certstore_default.h>
 #include <dirent.h>
@@ -99,16 +100,32 @@ removeAllFilesFromDir(const char *const path, bool removeSubDirs) {
 	return retval;
 }
 
+static char* copyStr(const char* s)
+{
+  size_t len = 1+strlen(s);
+  char* p = (char*)malloc(len);
+  p[len-1] = 0x00;
+  return p ? (char*)memcpy(p, s, len) : NULL;
+}
+
 static int
 mkpath(char *dir, mode_t mode) {
     struct stat sb;
-    if(!dir) {
+
+    if(dir == NULL) {
         errno = EINVAL;
         return 1;
     }
-    if(!stat(dir, &sb))
-        return 0;
-    mkpath(dirname(strdupa(dir)), mode);
+
+    if(!stat(dir, &sb)) {
+    	/* Directory already exist */
+    	return 0;
+    }
+
+    char* tmp_dir = copyStr(dir);
+    mkpath(dirname(tmp_dir), mode);
+    free(tmp_dir);
+
     return mkdir(dir, mode);
 }
 
@@ -124,8 +141,10 @@ setupPkiDir(char *directory, char *cwd, size_t cwdLen, char **out) {
     pathLen = strnlen(path, PATH_MAX);
 
     *out = strndup(path, pathLen+1);
-    if(*out == NULL)
+    if(*out == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
     mkpath(*out, 0777);
     return UA_STATUSCODE_GOOD;
 }
@@ -407,6 +426,8 @@ storeRejectedList(UA_PKIStore *certStore, const UA_ByteString *rejectedList, siz
 static UA_StatusCode
 appendRejectedList(UA_PKIStore *certStore, const UA_ByteString *certificate)
 {
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
     /* Check parameter */
 	if (certStore == NULL || certificate == NULL) {
 		return UA_STATUSCODE_BADINTERNALERROR;
@@ -414,11 +435,27 @@ appendRejectedList(UA_PKIStore *certStore, const UA_ByteString *certificate)
 
 	FilePKIStore *context = (FilePKIStore *)certStore->context;
 
-  	/* Create filename to load */
-    char filename[FILENAME_MAX];
-    if(snprintf(filename, FILENAME_MAX, "%s/%s", context->rejectedCertDir, "file") < 0) {
-        return UA_STATUSCODE_BADINTERNALERROR;
-    }
+	/* check duplicate certificate */
+	UA_ByteString* rejectedList = NULL;
+	size_t rejectedListLen = 0;
+	retval = loadList(&rejectedList, &rejectedListLen, context->rejectedCertDir);
+	if (retval != UA_STATUSCODE_GOOD) {
+		return retval;
+	}
+
+	size_t idx = 0;
+	for (idx = 0; idx < rejectedListLen; idx++) {
+		if (UA_ByteString_equal(&rejectedList[idx], certificate)) {
+			return UA_STATUSCODE_GOOD; /* certificate already exist */
+		}
+	}
+
+  	/* Create filename to store */
+	char filename[FILENAME_MAX];
+	retval = getCertFileName(certStore, context->rejectedCertDir, certificate, filename, FILENAME_MAX);
+	if(retval != UA_STATUSCODE_GOOD) {
+	    return UA_STATUSCODE_BADINTERNALERROR;
+	}
 
     /* Store data in file */
     return writeByteStringToFile(filename, certificate);
@@ -435,31 +472,31 @@ getCertTypeFileName(
     UA_NodeId userCredentialCertType = UA_NODEID_NUMERIC(0, UA_NS0ID_USERCREDENTIALCERTIFICATETYPE);
     UA_NodeId httpsCertType = UA_NODEID_NUMERIC(0, UA_NS0ID_HTTPSCERTIFICATETYPE);
     UA_NodeId RSAMinCertType = UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE);
-    UA_NodeId RSASHA246CertType = UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE);
+    UA_NodeId RSASHA256CertType = UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE);
 
 	/* Set filename */
 	if (UA_NodeId_equal(&certType, &applCertType)) {
-	    if (!snprintf(filenameBuf, filenameLen, "%s/Appl", directory)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/ApplCert", directory)) {
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
 	else if (UA_NodeId_equal(&certType, &userCredentialCertType)) {
-	    if (!snprintf(filenameBuf, filenameLen, "%s/UserCredential", directory)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/UserCredentialCert", directory)) {
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
 	else if (UA_NodeId_equal(&certType, &httpsCertType)) {
-	    if (!snprintf(filenameBuf, filenameLen, "%s/Http", directory)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/HttpCert", directory)) {
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
 	else if (UA_NodeId_equal(&certType, &RSAMinCertType)) {
-	    if (!snprintf(filenameBuf, filenameLen, "%s/RSAMin", directory)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/RSAMinCert", directory)) {
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
-	else if (UA_NodeId_equal(&certType, &RSASHA246CertType)) {
-	    if (!snprintf(filenameBuf, filenameLen, "%s/RSASHA246Cert", directory)) {
+	else if (UA_NodeId_equal(&certType, &RSASHA256CertType)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/RSASHA256Cert", directory)) {
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
@@ -497,7 +534,8 @@ loadCertificate_file(UA_PKIStore *pkiStore, const UA_NodeId certType, UA_ByteStr
     }
 
     /* Read certificate from file */
-    return readFileToByteString(filename, cert);
+    retval = readFileToByteString(filename, cert);
+    return retval;
 }
 
 static UA_StatusCode
@@ -672,17 +710,19 @@ create_root_directory(
     }
     rootDirectoryLen = strnlen(rootDirectory, PATH_MAX);
 
-    *rootDir = strndup(rootDirectory, rootDirectoryLen+1);
+    *rootDir = (char*)malloc(rootDirectoryLen+1);
     if (*rootDir == NULL) {
     	return UA_STATUSCODE_BADINTERNALERROR;
     }
+    memcpy(*rootDir, rootDirectory, rootDirectoryLen+1);
 
     *rootDirLen = strnlen(*rootDir, PATH_MAX);
     return UA_STATUSCODE_GOOD;
 }
 
+
 UA_StatusCode
-UA_PKIStore_File(
+UA_PKIStore_File_create(
 	UA_PKIStore *pkiStore,
 	UA_NodeId *certificateGroupId,
 	char* pkiDir,
@@ -696,6 +736,8 @@ UA_PKIStore_File(
     if(pkiStore == NULL || certificateGroupId == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
+
+    UA_PKIStore_File_clear(pkiStore);
 
     /* Create root directory */
     char* rootDir = NULL;
@@ -742,6 +784,56 @@ UA_PKIStore_File(
     return UA_STATUSCODE_GOOD;
 
 error:
+	free(rootDir);
     pkiStore->clear(pkiStore);
     return UA_STATUSCODE_BADINTERNALERROR;
+}
+
+void
+UA_PKIStore_File_clear(
+	UA_PKIStore *pkiStore
+)
+{
+	/* Check parameter */
+	if (pkiStore == NULL) {
+		return;
+	}
+
+	UA_NodeId_clear(&pkiStore->certificateGroupId);
+
+	/* Delete context data */
+	FilePKIStore* context = (FilePKIStore*)pkiStore->context;
+	if (context != NULL) {
+		if (context->trustedCertDir != NULL) {
+			free(context->trustedCertDir);
+			context->trustedCertDir = NULL;
+		}
+		if (context->trustedCrlDir != NULL) {
+			free(context->trustedCrlDir);
+			context->trustedCrlDir = NULL;
+		}
+		if (context->trustedIssuerCertDir != NULL) {
+			free(context->trustedIssuerCertDir);
+			context->trustedIssuerCertDir = NULL;
+		}
+		if (context->trustedIssuerCrlDir != NULL) {
+			free(context->trustedIssuerCrlDir);
+			context->trustedIssuerCrlDir = NULL;
+		}
+		if (context->rejectedCertDir != NULL) {
+			free(context->rejectedCertDir);
+			context->rejectedCertDir = NULL;
+		}
+		if (context->certificateDir != NULL) {
+			free(context->certificateDir);
+			context->certificateDir = NULL;
+		}
+		if (context->keyDir != NULL) {
+			free(context->keyDir);
+			context->keyDir = NULL;
+		}
+
+		free(context);
+		pkiStore->context = NULL;
+	}
 }

@@ -335,12 +335,6 @@ UA_Server_init(UA_Server *server) {
     res = UA_Server_initNS0(server);
     UA_CHECK_STATUS(res, goto cleanup);
 
-    /* Add createSigningRequest callback */
-    res = UA_Server_setMethodNodeCallback(server, UA_NODEID_NUMERIC(0,
-                                          UA_NS0ID_SERVERCONFIGURATION_CREATESIGNINGREQUEST),
-                                          createSigningRequest);
-    UA_CHECK_STATUS(res, goto cleanup);
-
 #ifdef UA_ENABLE_PUBSUB
     /* Build PubSub information model */
 #ifdef UA_ENABLE_PUBSUB_INFORMATIONMODEL
@@ -465,33 +459,42 @@ UA_Server_removeCallback(UA_Server *server, UA_UInt64 callbackId) {
 }
 
 UA_StatusCode
-UA_Server_updateCertificate(UA_Server *server,
-                            const UA_ByteString *oldCertificate,
-                            const UA_ByteString *newCertificate,
-                            const UA_ByteString *newPrivateKey,
-                            UA_Boolean closeSessions,
-                            UA_Boolean closeSecureChannels) {
-
-    UA_CHECK(server && oldCertificate && newCertificate && newPrivateKey,
-             return UA_STATUSCODE_BADINTERNALERROR);
+UA_Server_updateCertificate(
+	UA_Server *server,
+	const UA_NodeId* certificateGroupId,
+	const UA_NodeId* certificateTypeId,
+    const UA_ByteString* certificate,
+    const UA_ByteString* privateKey,
+    UA_Boolean closeSessions,
+    UA_Boolean closeSecureChannels
+) {
+	if (server == NULL || certificateGroupId == NULL || certificateTypeId == NULL ||
+		certificate == NULL || privateKey == NULL) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
 
     /* close sessions on certificate update */
     if(closeSessions) {
         session_list_entry *current;
         LIST_FOREACH(current, &server->sessions, pointers) {
-        	/* Load local certificate */
-        	UA_ByteString localCertificate;
         	UA_PKIStore* pkiStore = current->session.header.channel->endpoint->pkiStore;
-        	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
+        	UA_SecurityPolicy *securityPolicy = current->session.header.channel->endpoint->securityPolicy;
 
-        	/* Compare certificates and delete session if necessary */
-            if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
-                UA_LOCK(&server->serviceMutex);
-                UA_Server_removeSessionByToken(server, &current->session.header.authenticationToken,
-                                               UA_DIAGNOSTICEVENT_CLOSE);
-                UA_UNLOCK(&server->serviceMutex);
+        	/* Check used certificate group */
+        	if (!UA_NodeId_equal(certificateGroupId, &pkiStore->certificateGroupId)) {
+        		continue;
+        	}
+
+        	/* Check used certificate type */
+           	if (!UA_NodeId_equal(certificateTypeId, &securityPolicy->certificateTypeId)) {
+            	continue;
             }
-            UA_ByteString_clear(&localCertificate);
+
+           	/* Close session */
+            UA_LOCK(&server->serviceMutex);
+            UA_Server_removeSessionByToken(server, &current->session.header.authenticationToken,
+                                           UA_DIAGNOSTICEVENT_CLOSE);
+            UA_UNLOCK(&server->serviceMutex);
         }
     }
 
@@ -499,18 +502,21 @@ UA_Server_updateCertificate(UA_Server *server,
     if(closeSecureChannels) {
         channel_entry *entry;
         TAILQ_FOREACH(entry, &server->channels, pointers) {
-        	/* Load local certificate */
-        	UA_ByteString localCertificate;
         	UA_PKIStore* pkiStore = entry->channel.endpoint->pkiStore;
+        	UA_SecurityPolicy *securityPolicy = entry->channel.endpoint->securityPolicy;
 
-        	/* FIXME: HUK pkiStore->certificateGroupId ist flasch -> cert type id */
-        	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
-
-        	/* Compare certificates and delete secure channel if necessary */
-        	if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
-        		shutdownServerSecureChannel(server, &entry->channel, UA_DIAGNOSTICEVENT_CLOSE);
+           	/* Check used certificate group */
+        	if (!UA_NodeId_equal(certificateGroupId, &pkiStore->certificateGroupId)) {
+            	continue;
             }
-            UA_ByteString_clear(&localCertificate);
+
+            /* Check used certificate type */
+            if (!UA_NodeId_equal(certificateTypeId, &securityPolicy->certificateTypeId)) {
+                continue;
+            }
+
+        	/* Close secure channel */
+        	shutdownServerSecureChannel(server, &entry->channel, UA_DIAGNOSTICEVENT_CLOSE);
         }
     }
 
@@ -518,17 +524,17 @@ UA_Server_updateCertificate(UA_Server *server,
     for (size_t idx = 0; idx < server->config.pkiStoresSize; idx++) {
     	UA_PKIStore* pkiStore = &server->config.pkiStores[idx];
 
-    	/* Load local certificate */
-    	UA_ByteString localCertificate;
-    	pkiStore->loadCertificate(pkiStore, pkiStore->certificateGroupId, &localCertificate);
+    	/* Add new certificate */
+    	UA_StatusCode retval = pkiStore->storeCertificate(pkiStore, *certificateTypeId, certificate);
+    	if (retval != UA_STATUSCODE_GOOD) {
+    		return retval;
+    	}
 
-       	/* update certificate and private key */
-        if(UA_ByteString_equal(oldCertificate, &localCertificate)) {
-        	pkiStore->storeCertificate(pkiStore, pkiStore->certificateGroupId, newCertificate);
-        	pkiStore->storePrivateKey(pkiStore, pkiStore->certificateGroupId, newPrivateKey);
+    	/* Add new private key */
+        retval = pkiStore->storePrivateKey(pkiStore, *certificateTypeId, privateKey);
+       	if (retval != UA_STATUSCODE_GOOD) {
+        	return retval;
         }
-
-    	UA_ByteString_clear(&localCertificate);
     }
 
     return UA_STATUSCODE_GOOD;
@@ -780,10 +786,25 @@ UA_Server_run_startup(UA_Server *server) {
         UA_CHECK_STATUS(retVal, return retVal);
     }
 
+#ifdef UA_ENABLE_ENCRYPTION
+    /* Register getRejectedListMethode */
     retVal = UA_Server_setMethodNodeCallback(server, UA_NODEID_NUMERIC(0,
     									     UA_NS0ID_SERVERCONFIGURATION_GETREJECTEDLIST),
-                                             getRejectedList);
+                                             getRejectedListMethod);
     UA_CHECK_STATUS(retVal, return retVal);
+
+    /* Register updateCertificateMethode */
+    retVal = UA_Server_setMethodNodeCallback(server, UA_NODEID_NUMERIC(0,
+    									     UA_NS0ID_SERVERCONFIGURATION_UPDATECERTIFICATE),
+                                             updateCertificateMethod);
+    UA_CHECK_STATUS(retVal, return retVal);
+
+    /* Add createSigningRequest callback */
+    retVal = UA_Server_setMethodNodeCallback(server, UA_NODEID_NUMERIC(0,
+                                          UA_NS0ID_SERVERCONFIGURATION_CREATESIGNINGREQUEST),
+                                          createSigningRequest);
+    UA_CHECK_STATUS(retVal, return retVal);
+#endif
 
     /* Start the multicast discovery server */
 #ifdef UA_ENABLE_DISCOVERY_MULTICAST
@@ -1109,26 +1130,134 @@ createSigningRequest(UA_Server *server,
 	return UA_STATUSCODE_GOOD;
 }
 
-/* Get the list of rejected certificates */
+/* UpdateCertificate method */
 UA_StatusCode
-getRejectedList(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionHandle,
-                const UA_NodeId *methodId, void *methodContext,
-                const UA_NodeId *objectId, void *objectContext,
-                size_t inputSize, const UA_Variant *input,
-                size_t outputSize, UA_Variant *output) {
-	UA_ByteString *list;
-	size_t listSize;
+updateCertificateMethod(UA_Server *server,
+	const UA_NodeId *sessionId, void *sessionHandle,
+    const UA_NodeId *methodId, void *methodContext,
+    const UA_NodeId *objectId, void *objectContext,
+    size_t inputSize, const UA_Variant *input,
+    size_t outputSize, UA_Variant *output)
+{
+	/* Input arg 1: CertificateGroupId */
+	UA_NodeId* certificateGroupId = (UA_NodeId *)input[0].data;
 
+	/* Input arg 2: CertificateTypeId */
+	UA_NodeId* certificateTypeId = (UA_NodeId *)input[1].data;
+
+	/* Input arg 3: Certificate */
+	UA_ByteString* certificate = (UA_ByteString *)input[2].data;
+
+	/* Input arg 4: Issuer Certificates */
+	/* Actual not implemented
+	UA_ByteString* issuerCertificates = (UA_ByteString *)input[3].data;
+	size_t issuerCertificatesLen = input[3].arrayLength; */
+
+	/* Input arg 5: PrivateKeyFormat */
+	/* TODO: Actual not implemented
+	UA_String* privateKeyFormat = (UA_String*)input[4].data; */
+
+	/* Input arg 6: PrivateKey */
+	UA_ByteString* privateKey = (UA_ByteString *)input[5].data;
+
+	/* Update certificate */
+	return UA_Server_updateCertificate(server, certificateGroupId, certificateTypeId,
+	    certificate, privateKey, true, true
+	);
+}
+
+
+UA_StatusCode
+UA_Server_getRejectedList(
+	UA_Server *server,
+	UA_ByteString **list,
+	size_t *listSize,
+	size_t listSizeMax
+)
+{
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+	size_t i, j, k = 0;
+
+	/* Check parameter */
+	if (server == NULL || list == NULL || listSize == NULL || listSizeMax == 0) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
+	/* Get server configuration */
 	UA_ServerConfig *config = UA_Server_getConfig(server);
-	if (config->certificateManager.context == NULL) {
+	if (!config) {
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
 
-	UA_StatusCode retval = rejectedList_get(&list, &listSize, &config->certificateManager);
-	UA_CHECK_STATUS(retval, return retval);
-	UA_Variant_setArray(output, list, listSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
+	/* Get rejected certificates from all server pki stores */
+	*list = (UA_ByteString*)UA_Array_new(listSizeMax, &UA_TYPES[UA_TYPES_STRING]);
+	*listSize = 0;
+	for (i = 0; i < config->pkiStoresSize; i++) {
+		UA_ByteString *rejectedList = NULL;
+		size_t rejectedListSize = 0;
 
+		/* Get rejected list */
+		UA_PKIStore* pkiStore = &config->pkiStores[i];
+		retval = pkiStore->loadRejectedList(pkiStore, &rejectedList, &rejectedListSize);
+		if (retval != UA_STATUSCODE_GOOD) {
+			*listSize = 0;
+			UA_Array_delete(*list, listSizeMax, &UA_TYPES[UA_TYPES_STRING]);
+			return retval;
+		}
+
+		/* Check duplicate entries and add new entry to list*/
+		for (j = 0; j < rejectedListSize; j++) {
+		    for (k = 0; k < *listSize; k++) {
+				if (UA_ByteString_equal(&rejectedList[j], &(*list)[k])) break;
+			}
+
+		    if (k == *listSize) {
+		    	UA_ByteString_copy(&rejectedList[j], &(*list)[*listSize]);
+		    	(*listSize)++;
+		    }
+
+		    if (*listSize >= listSizeMax) {
+		    	UA_Array_delete(rejectedList, rejectedListSize, &UA_TYPES[UA_TYPES_STRING]);
+		    	return UA_STATUSCODE_GOOD;
+		    }
+		}
+		UA_Array_delete(rejectedList, rejectedListSize, &UA_TYPES[UA_TYPES_STRING]);
+	}
+
+	size_t newSize = *listSize;
+    *listSize = listSizeMax;
+	retval = UA_Array_resize((void**)list, listSize, newSize, &UA_TYPES[UA_TYPES_STRING]);
+	if (retval != UA_STATUSCODE_GOOD) return retval;
+	return UA_STATUSCODE_GOOD;
+}
+
+/* GetRejectedList method */
+UA_StatusCode
+getRejectedListMethod(UA_Server *server,
+	const UA_NodeId *sessionId, void *sessionHandle,
+    const UA_NodeId *methodId, void *methodContext,
+    const UA_NodeId *objectId, void *objectContext,
+    size_t inputSize, const UA_Variant *input,
+    size_t outputSize, UA_Variant *output)
+{
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+	UA_ByteString* list = NULL;
+	size_t listSize = 0;
+
+	/* Get server configuration */
+	UA_ServerConfig *config = UA_Server_getConfig(server);
+	if (!config) {
+	    return UA_STATUSCODE_BADINTERNALERROR;
+	}
+	size_t listSizeMax = config->rejectedListMethodMaxListSize;
+
+	/* Get rejected certificates from certificate store */
+	retval = UA_Server_getRejectedList(server, &list, &listSize, listSizeMax);
+	if (retval != UA_STATUSCODE_GOOD) {
+		return retval;
+	}
+
+	UA_Variant_setArray(output, list, listSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
 	return UA_STATUSCODE_GOOD;
 }
 

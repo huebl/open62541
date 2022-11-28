@@ -944,12 +944,6 @@ createSessionAsync(UA_Client *client) {
 
 static UA_StatusCode
 initSecurityPolicy(UA_Client *client) {
-    /* Already initialized */
-#if 0 /* FIXME :HUK TODO */
-    if(client->channel.endpoint->securityPolicy) {
-        return UA_STATUSCODE_BADINTERNALERROR;
-    }
-#endif
 
     client->channel.securityMode = client->config.endpointDescription.securityMode;
 
@@ -975,13 +969,13 @@ initSecurityPolicy(UA_Client *client) {
     }
 
     /* set remote certificate */
-    UA_StatusCode retVal = UA_ByteString_copy(
+    UA_ByteString_copy(
         &client->config.endpointDescription.serverCertificate,
 		&client->channel.remoteCertificate
 	);
 
     /* Create new Context */
-    retVal = sp->channelModule.
+    UA_StatusCode retVal = sp->channelModule.
         newContext(sp, pkiStore, &client->channel.remoteCertificate, &client->channel.channelContext);
     UA_CHECK_STATUS_WARN(retVal, return retVal, sp->logger,
                          UA_LOGCATEGORY_SECURITYPOLICY,
@@ -1002,8 +996,12 @@ initSecurityPolicy(UA_Client *client) {
     if (endpoint == NULL) {
     	return UA_STATUSCODE_BADOUTOFMEMORY;
     }
-    memset(endpoint, 0, sizeof(UA_Endpoint));
-    retVal = UA_Endpoint_init(
+    retVal = UA_Endpoint_init(endpoint);
+    if (retVal != UA_STATUSCODE_GOOD) {
+    	return retVal;
+    }
+
+    retVal = UA_Endpoint_setValues(
     	endpoint,
 		&client->config.endpointDescription.endpointUrl,
         pkiStore,

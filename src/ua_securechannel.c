@@ -339,7 +339,6 @@ encodeHeadersSym(UA_MessageContext *mc, size_t totalLength) {
         header.messageTypeAndChunkType += UA_CHUNKTYPE_INTERMEDIATE;
 
     /* Increase the sequence number in the channel */
-    printf("XXXXXXXXXXXXX FIXME HUK SeqNo=%d\n", channel->sendSequenceNumber);
     channel->sendSequenceNumber++;
 
     UA_SequenceHeader seqHeader;
@@ -588,7 +587,6 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
     UA_CHECK_STATUS(res, return res);
 
     /* New channel, create a security policy context and attach */
-    printf("XXXXXXXXXXXXXX  FIXME :HUK %d %d %d\n", secureChannelId, channel->securityToken.channelId, channel->securityToken.tokenId );
     if(!channel->endpoint) {
         if(channel->processOPNHeader)
             res = channel->processOPNHeader(application, channel, &asymHeader);
@@ -615,7 +613,6 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
     }
 
     /* On the client side, take the SecureChannelId from the first response */
-    printf("XXXXXXXXXXXXXX  FIXME :HUK %d %d %d\n", secureChannelId, channel->securityToken.channelId, channel->securityToken.tokenId );
     if(secureChannelId != 0 && channel->securityToken.channelId == 0)
         channel->securityToken.channelId = secureChannelId;
 
@@ -681,9 +678,6 @@ unpackPayloadMSG(UA_SecureChannel *channel, UA_Chunk *chunk) {
 
 #if !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     /* Check the ChannelId. Non-opened channels have the id zero. */
-
-    printf("XXXXXXXXXXXXXX  FIXME :HUK MSG %d %d\n", secureChannelId, channel->securityToken.channelId );
-
     if(secureChannelId != channel->securityToken.channelId)
         return UA_STATUSCODE_BADSECURECHANNELIDINVALID;
 #endif

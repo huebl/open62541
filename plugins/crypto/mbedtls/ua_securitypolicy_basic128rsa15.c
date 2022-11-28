@@ -161,7 +161,6 @@ decrypt_rsa15_sp_basic128rsa15(ChannelContext_mbedtls *cc,
         int mbedErr = mbedtls_pk_decrypt(privateKey,
                                          data->data + inOffset, rsaContext->len,
                                          buf, &outLength, 512, NULL, NULL);
-        printf("mbedtls_pk_decrypt %d\n", mbedErr);
 #else
         int mbedErr = mbedtls_pk_decrypt(privateKey,
                                          data->data + inOffset, keylen,

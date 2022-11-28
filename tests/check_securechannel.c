@@ -34,7 +34,7 @@ UA_ByteString dummyCertificate =
 UA_SecurityPolicy dummyPolicy;
 UA_ByteString sentData;
 UA_Endpoint* endpoint;
-UA_PKIStore* pkiStore;
+UA_PKIStore pkiStore;
 
 static funcs_called fCalled;
 static key_sizes keySizes;
@@ -44,16 +44,14 @@ static void
 setup_pkiStore(void) {
 	/* Create PKI Store */
     UA_NodeId certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-    pkiStore = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
 
     /* Create File PKI Store */
-    UA_PKIStore_File(pkiStore, &certificateGroupId, NULL, NULL);
+    UA_PKIStore_File_create(&pkiStore, &certificateGroupId, NULL, NULL);
 }
 
 static void
 teardown_pkiStore(void) {
-	UA_free(pkiStore);
-	pkiStore = NULL;
+	UA_PKIStore_File_clear(&pkiStore);
 }
 
 static UA_StatusCode
@@ -62,13 +60,15 @@ setup_endpoint(UA_SecureChannel* channel) {
 
 	UA_String serverUrl = UA_BYTESTRING("opc.tcp://127.0.0.1:4840");
 	UA_ApplicationDescription applicationDescription;
+	UA_ApplicationDescription_init(&applicationDescription);
 
 	/* Create new endpoint */
 	endpoint = (UA_Endpoint *)UA_malloc(sizeof(UA_Endpoint));
-	UA_Endpoint_init(
+	UA_Endpoint_init(endpoint);
+	UA_Endpoint_setValues(
 		endpoint,
 	    &serverUrl,
-	    pkiStore,
+	    &pkiStore,
 		&dummyPolicy,
 	    true,
 	    true,

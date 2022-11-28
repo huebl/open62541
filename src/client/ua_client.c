@@ -72,8 +72,19 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
     UA_EndpointDescription_clear(&config->endpointDescription);
     UA_UserTokenPolicy_clear(&config->userTokenPolicy);
 
-    if(config->certificateManager.clear)
+    /* Delete certificate manager */
+    if(config->certificateManager.clear) {
         config->certificateManager.clear(&config->certificateManager);
+    }
+
+    /* Delete pki stores **/
+    if(config->pkiStores != 0) {
+        for(size_t i = 0; i < config->pkiStoresSize; i++)
+            config->pkiStores[i].clear(&config->pkiStores[i]);
+        UA_free(config->pkiStores);
+        config->pkiStores = 0;
+        config->pkiStoresSize = 0;
+    }
 
     /* Delete the SecurityPolicies */
     if(config->securityPolicies != 0) {
@@ -81,6 +92,7 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
             config->securityPolicies[i].clear(&config->securityPolicies[i]);
         UA_free(config->securityPolicies);
         config->securityPolicies = 0;
+        config->securityPoliciesSize = 0;
     }
 
     /* Stop and delete the EventLoop */

@@ -121,7 +121,7 @@ getLocalCertificate_none(const UA_SecurityPolicy *policy,
 #elif defined(UA_ENABLE_ENCRYPTION_OPENSSL) || defined(UA_ENABLE_ENCRYPTION_LIBRESSL)
     UA_StatusCode retval = UA_OpenSSL_LoadLocalCertificate(policy, pkiStore, cert);
 #else
-    UA_StatusCode retval = UA_ByteString_copy(&localCertificate, cert);
+    UA_StatusCode retval = UA_STATUSCODE_BADNOTFOUND;
 #endif
     // For the none policy we allow the certificate to not exist.
     if(retval == UA_STATUSCODE_BADNOTFOUND) {
@@ -137,7 +137,7 @@ UA_StatusCode
 UA_SecurityPolicy_None(UA_SecurityPolicy *policy, const UA_Logger *logger) {
     policy->policyUri = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#None");
     policy->logger = logger;
-    policy->certificateTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE);
+    policy->certificateTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_APPLICATIONCERTIFICATETYPE); /* FIXME: HUK */
 
     policy->symmetricModule.generateKey = generateKey_none;
     policy->symmetricModule.generateNonce = generateNonce_none;

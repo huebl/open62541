@@ -21,7 +21,6 @@
 #include <open62541/common.h>
 
 #include <open62541/plugin/log.h>
-#include <open62541/plugin/pki.h>
 #include <open62541/plugin/network.h>
 #include <open62541/plugin/nodestore.h>
 #include <open62541/plugin/eventloop.h>
@@ -189,6 +188,7 @@ struct UA_ServerConfig {
     /* One PKIStore corresponds to one certificate Group */
     size_t pkiStoresSize;
     UA_PKIStore *pkiStores;
+    size_t rejectedListMethodMaxListSize;
 
     size_t endpointsSize;
     UA_Endpoint *endpoints;
@@ -389,13 +389,33 @@ createSigningRequest(UA_Server *server,
                                 size_t outputSize, UA_Variant *output);
 
 /* Get the list of rejected certificates */
+UA_StatusCode
+UA_Server_getRejectedList(
+	UA_Server *server,
+	UA_ByteString **list,
+	size_t *listSize,
+	size_t listSizeMax
+);
+
 UA_StatusCode UA_EXPORT
-getRejectedList(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionHandle,
-                const UA_NodeId *methodId, void *methodContext,
-                const UA_NodeId *objectId, void *objectContext,
-                size_t inputSize, const UA_Variant *input,
-                size_t outputSize, UA_Variant *output);
+getRejectedListMethod(
+	UA_Server *server,
+	const UA_NodeId *sessionId, void *sessionHandle,
+    const UA_NodeId *methodId, void *methodContext,
+    const UA_NodeId *objectId, void *objectContext,
+    size_t inputSize, const UA_Variant *input,
+    size_t outputSize, UA_Variant *output
+);
+
+UA_StatusCode UA_EXPORT
+updateCertificateMethod(
+	UA_Server *server,
+	const UA_NodeId *sessionId, void *sessionHandle,
+    const UA_NodeId *methodId, void *methodContext,
+    const UA_NodeId *objectId, void *objectContext,
+    size_t inputSize, const UA_Variant *input,
+    size_t outputSize, UA_Variant *output
+);
 
 #ifdef UA_ENABLE_ENCRYPTION
 /* Setup the Certificate Manager */
@@ -1804,10 +1824,11 @@ UA_Server_setExpirationDate(UA_Server *server, const UA_NodeId conditionId,
  * Update the Server Certificate at Runtime
  * ---------------------------------------- */
 UA_StatusCode UA_EXPORT
-UA_Server_updateCertificate(UA_Server *server,
-                            const UA_ByteString *oldCertificate,
-                            const UA_ByteString *newCertificate,
-                            const UA_ByteString *newPrivateKey,
+UA_Server_updateCertificate(UA_Server* server,
+                  	  	    const UA_NodeId* certificateGroupId,
+							const UA_NodeId* certificateTypeId,
+                            const UA_ByteString* certificate,
+                            const UA_ByteString* privateKey,
                             UA_Boolean closeSessions,
                             UA_Boolean closeSecureChannels);
 
