@@ -18,6 +18,10 @@ void
 UA_Endpoint_clear(
 	UA_Endpoint* endpoint
 ) {
+	if (endpoint == NULL) {
+		return;
+	}
+
     UA_String_clear(&endpoint->endpointUrl);
     UA_String_clear(&endpoint->endpointDescription->securityPolicyUri);
     UA_EndpointDescription_clear(endpoint->endpointDescription);
