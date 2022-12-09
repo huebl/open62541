@@ -23,7 +23,7 @@ UA_Endpoint_clear(
 	}
 
     UA_String_clear(&endpoint->endpointUrl);
-    UA_String_clear(&endpoint->endpointDescription->securityPolicyUri);
+    //UA_String_clear(&endpoint->endpointDescription->securityPolicyUri);
     if (endpoint->endpointDescription != NULL) {
     	UA_EndpointDescription_clear(endpoint->endpointDescription);
     	UA_free(endpoint->endpointDescription);
