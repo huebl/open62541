@@ -24,7 +24,10 @@ UA_Endpoint_clear(
 
     UA_String_clear(&endpoint->endpointUrl);
     UA_String_clear(&endpoint->endpointDescription->securityPolicyUri);
-    UA_EndpointDescription_clear(endpoint->endpointDescription);
+    if (endpoint->endpointDescription != NULL) {
+    	UA_EndpointDescription_clear(endpoint->endpointDescription);
+    	UA_free(endpoint->endpointDescription);
+    }
 }
 
 UA_StatusCode
