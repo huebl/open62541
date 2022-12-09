@@ -23,15 +23,6 @@ UA_CertificateManager_AcceptAll(UA_CertificateManager *cv);
 UA_EXPORT UA_StatusCode
 UA_CertificateManager_create(UA_CertificateManager *certificateManager);
 
-#if 0 /* FIXME: HUK */
-/* Get the list of rejected certificates */
-UA_StatusCode rejectedList_get(UA_ByteString **byteStringArray, size_t *arraySize,
-                               UA_CertificateManager* certificateManager);
-
-/* Get the list of rejected certificates for testing purposes only */
-UA_StatusCode rejectedList_add_for_testing(const UA_ByteString *certificate,
-                                           UA_CertificateManager* certificateManager);
-#endif
 #endif
 
 _UA_END_DECLS

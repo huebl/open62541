@@ -172,10 +172,10 @@ UA_SecureChannel_clear(UA_SecureChannel *channel) {
         }
     }
 
+
     /* Delete the channel context for the security policy */
     if(channel->endpoint && channel->endpoint->securityPolicy) {
         channel->endpoint->securityPolicy->channelModule.deleteContext(channel->channelContext);
-        channel->endpoint = NULL;
         channel->channelContext = NULL;
     }
 

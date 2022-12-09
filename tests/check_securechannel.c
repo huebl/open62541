@@ -88,7 +88,6 @@ static void
 teardown_endpoint(void) {
 	UA_Endpoint_clear(endpoint);
 	UA_free(endpoint);
-	endpoint = NULL;
 	teardown_pkiStore();
 }
 

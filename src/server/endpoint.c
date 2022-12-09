@@ -23,10 +23,10 @@ UA_Endpoint_clear(
 	}
 
     UA_String_clear(&endpoint->endpointUrl);
-    //UA_String_clear(&endpoint->endpointDescription->securityPolicyUri);
     if (endpoint->endpointDescription != NULL) {
     	UA_EndpointDescription_clear(endpoint->endpointDescription);
     	UA_free(endpoint->endpointDescription);
+    	endpoint->endpointDescription = NULL;
     }
 }
 
@@ -64,7 +64,6 @@ UA_Endpoint_setValues(
     	return UA_STATUSCODE_BADOUTOFMEMORY;
     }
     UA_EndpointDescription_init(endpoint->endpointDescription);
-
     endpoint->endpointDescription->securityMode = UA_MESSAGESECURITYMODE_INVALID;
     UA_String_copy(&securityPolicy->policyUri, &endpoint->endpointDescription->securityPolicyUri);
     endpoint->endpointDescription->transportProfileUri =

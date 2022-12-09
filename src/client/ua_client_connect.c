@@ -990,9 +990,15 @@ initSecurityPolicy(UA_Client *client) {
                          UA_LOGCATEGORY_SECURITYPOLICY,
                          "Could not create the certificate thumbprint");
 
+    /* Check if endpoint already exist */
+    UA_Endpoint* endpoint = (UA_Endpoint*)(unsigned long)client->channel.endpoint;
+    if (endpoint != NULL) {
+    	UA_Endpoint_clear(endpoint);
+    	UA_free(endpoint);
+    }
 
     /* Create Endpoint */
-    UA_Endpoint* endpoint = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint));
+    endpoint = (UA_Endpoint*)UA_malloc(sizeof(UA_Endpoint));
     if (endpoint == NULL) {
     	return UA_STATUSCODE_BADOUTOFMEMORY;
     }
@@ -1225,6 +1231,13 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
          * this after setting the Session state. Otherwise we send out new Publish
          * Requests immediately. */
         __Client_AsyncService_removeAll(client, UA_STATUSCODE_BADSECURECHANNELCLOSED);
+
+        /* clean endpoint from secure channel */
+        UA_Endpoint* endpoint = (UA_Endpoint*)(unsigned long)client->channel.endpoint;
+        if (endpoint != NULL) {
+        	UA_Endpoint_clear(endpoint);
+        	UA_free(endpoint);
+        }
 
         /* Clean up the channel and set the status to CLOSED */
         UA_SecureChannel_clear(&client->channel);
