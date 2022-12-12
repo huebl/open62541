@@ -79,8 +79,9 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
 
     /* Delete pki stores **/
     if(config->pkiStores != 0) {
-        for(size_t i = 0; i < config->pkiStoresSize; i++)
+        for(size_t i = 0; i < config->pkiStoresSize; i++) {
             config->pkiStores[i].clear(&config->pkiStores[i]);
+        }
         UA_free(config->pkiStores);
         config->pkiStores = 0;
         config->pkiStoresSize = 0;

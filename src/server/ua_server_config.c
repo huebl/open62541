@@ -59,9 +59,6 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
 
     if(config->endpoints != NULL) {
         for(size_t i = 0; i < config->endpointsSize; ++i) {
-
-        	printf("SECOND FREE %p\n", (void*)&config->endpoints[i]);
-
             UA_Endpoint_clear(&config->endpoints[i]);
         }
 

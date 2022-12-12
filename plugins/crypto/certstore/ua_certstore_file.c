@@ -629,6 +629,7 @@ removeContentAll(UA_PKIStore *pkiStore)
 static UA_StatusCode
 clear_file(UA_PKIStore *certStore) {
 	/* check parameter */
+
 	if (certStore == NULL) {
 		return UA_STATUSCODE_BADINTERNALERROR;
 	}
@@ -731,7 +732,6 @@ UA_PKIStore_File_create(
 		UA_ByteString* thumbprint
 	)
 ) {
-
 	/* Check parameter */
     if(pkiStore == NULL || certificateGroupId == NULL) {
         return UA_STATUSCODE_BADINTERNALERROR;
@@ -744,6 +744,7 @@ UA_PKIStore_File_create(
     size_t rootDirLen = 0;
     UA_StatusCode retval = create_root_directory(pkiDir, certificateGroupId, &rootDir, &rootDirLen);
     if (retval != UA_STATUSCODE_GOOD || rootDir == NULL) {
+    	if (rootDir) UA_free(rootDir);
     	return retval;
     }
 
@@ -784,7 +785,7 @@ UA_PKIStore_File_create(
     return UA_STATUSCODE_GOOD;
 
 error:
-    pkiStore->clear(pkiStore);
+	UA_PKIStore_File_clear(pkiStore);
     return UA_STATUSCODE_BADINTERNALERROR;
 }
 

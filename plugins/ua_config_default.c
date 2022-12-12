@@ -1166,19 +1166,21 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
 
     /* Create default PKIStore */
     config->certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
-    config->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
-    if(config->pkiStores == NULL) {
-        /* UA_ServerConfig_clean(config); */
-        return UA_STATUSCODE_BADOUTOFMEMORY;
-    }
-    memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
+    if (config->pkiStores == NULL) {
+    	config->pkiStores = (UA_PKIStore*)UA_malloc(sizeof(UA_PKIStore));
+    	if(config->pkiStores == NULL) {
+    		/* UA_ServerConfig_clean(config); */
+    		return UA_STATUSCODE_BADOUTOFMEMORY;
+    	}
+    	memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File_create(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
-    if(retval != UA_STATUSCODE_GOOD) {
-        /* UA_ServerConfig_clean(config); */
-        return retval;
+    	retval = UA_PKIStore_File_create(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
+    	if(retval != UA_STATUSCODE_GOOD) {
+    		/* UA_ServerConfig_clean(config); */
+    		return retval;
+    	}
+    	config->pkiStoresSize = 1;
     }
-    config->pkiStoresSize = 1;
 
     config->customDataTypes = NULL;
     config->stateCallback = NULL;

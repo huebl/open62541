@@ -995,6 +995,7 @@ initSecurityPolicy(UA_Client *client) {
     if (endpoint != NULL) {
     	UA_Endpoint_clear(endpoint);
     	UA_free(endpoint);
+    	client->channel.endpoint = NULL;
     }
 
     /* Create Endpoint */
