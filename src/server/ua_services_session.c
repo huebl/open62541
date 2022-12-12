@@ -938,10 +938,19 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
     }
 #endif
 
+    if (utp) {
+    	UA_UserTokenPolicy_clear(utp);
+    	UA_free((void*)utp);
+    }
+
     UA_LOG_INFO_SESSION(&server->config.logger, session, "ActivateSession: Session activated");
     return;
 
 securityRejected:
+	if (utp) {
+		UA_UserTokenPolicy_clear(utp);
+		UA_free((void*)utp);
+	}
     server->serverDiagnosticsSummary.securityRejectedSessionCount++;
 rejected:
     server->serverDiagnosticsSummary.rejectedSessionCount++;
