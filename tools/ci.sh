@@ -284,7 +284,7 @@ function unit_tests_encryption_mbedtls_pubsub {
 }
 
 function unit_tests_pubsub_sks {
-    mkdir -p build; cd build; rm -rf *
+    /kdir -p build; cd build; rm -rf *
     cmake -DCMAKE_BUILD_TYPE=Debug \
           -DUA_NAMESPACE_ZERO=FULL \
           -DUA_BUILD_EXAMPLES=ON \
@@ -345,6 +345,7 @@ function unit_tests_with_coverage {
 function unit_tests_valgrind {
     mkdir -p build; cd build; rm -rf *
     cmake -DCMAKE_BUILD_TYPE=Debug \
+	  -DUA_NAMESPACE_ZERO=FULL \
           -DUA_BUILD_EXAMPLES=ON \
           -DUA_BUILD_UNIT_TESTS=ON \
           -DUA_ENABLE_DISCOVERY=ON \
