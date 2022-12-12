@@ -784,7 +784,6 @@ UA_PKIStore_File_create(
     return UA_STATUSCODE_GOOD;
 
 error:
-	free(rootDir);
     pkiStore->clear(pkiStore);
     return UA_STATUSCODE_BADINTERNALERROR;
 }

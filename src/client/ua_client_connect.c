@@ -1195,6 +1195,7 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
             UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                          "Cannot open a connection for SecureChannel that is already used");
             client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
+            printf("RESUSE CONNECTION\n");
             goto refuse_connection;
         }
 
@@ -1214,7 +1215,6 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
         
         goto continue_connect;
     }
-
     /* The connection is closing in the EventLoop. This is the last callback
      * from that connection. Clean up the SecureChannel in the client. */
     if(state == UA_CONNECTIONSTATE_CLOSING) {
@@ -1237,6 +1237,7 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
         if (endpoint != NULL) {
         	UA_Endpoint_clear(endpoint);
         	UA_free(endpoint);
+        	client->channel.endpoint = NULL;
         }
 
         /* Clean up the channel and set the status to CLOSED */
