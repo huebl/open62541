@@ -1133,6 +1133,11 @@ verifyClientSecurechannelHeader(void *application, UA_SecureChannel *channel,
  * SecurityPolicies */
 static void
 verifyClientApplicationURI(UA_Client *client) {
+
+	if (client->channel.endpoint == NULL) return;
+	if (client->channel.endpoint->securityPolicy == NULL) return;
+	if (client->channel.endpoint->securityPolicy->getLocalCertificate == NULL) return;
+
 #if defined(UA_ENABLE_ENCRYPTION) && (UA_LOGLEVEL <= 400)
     for(size_t i = 0; i < client->config.securityPoliciesSize; i++) {
         UA_SecurityPolicy *sp = &client->config.securityPolicies[i];
