@@ -1090,6 +1090,8 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
      *  sessionLocaleIds
      *  sessionLocaleIdsSize */
 
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
     if(config->timeout == 0)
         config->timeout = 5000;
     if(config->secureChannelLifeTime == 0)
@@ -1141,7 +1143,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
         config->securityPolicies = (UA_SecurityPolicy*)UA_malloc(sizeof(UA_SecurityPolicy));
         if(!config->securityPolicies)
             return UA_STATUSCODE_BADOUTOFMEMORY;
-        UA_StatusCode retval = UA_SecurityPolicy_None(config->securityPolicies, &config->logger);
+        retval = UA_SecurityPolicy_None(config->securityPolicies, &config->logger);
         if(retval != UA_STATUSCODE_GOOD) {
             UA_free(config->securityPolicies);
             config->securityPolicies = NULL;
@@ -1153,16 +1155,19 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
     if(config->requestedSessionTimeout == 0)
         config->requestedSessionTimeout = 1200000;
 
+    if (config->securityPolicies == NULL) {
     config->securityPolicies = (UA_SecurityPolicy*)UA_malloc(sizeof(UA_SecurityPolicy));
-    if(!config->securityPolicies)
-        return UA_STATUSCODE_BADOUTOFMEMORY;
-    UA_StatusCode retval = UA_SecurityPolicy_None(config->securityPolicies, &config->logger);
-    if(retval != UA_STATUSCODE_GOOD) {
-        UA_free(config->securityPolicies);
-        config->securityPolicies = NULL;
-        return retval;
+    	if(!config->securityPolicies) {
+    		return UA_STATUSCODE_BADOUTOFMEMORY;
+    	}
+    	retval = UA_SecurityPolicy_None(config->securityPolicies, &config->logger);
+    	if(retval != UA_STATUSCODE_GOOD) {
+    		UA_free(config->securityPolicies);
+    		config->securityPolicies = NULL;
+    		return retval;
+    	}
+    	config->securityPoliciesSize = 1;
     }
-    config->securityPoliciesSize = 1;
 
     /* Create default PKIStore */
     config->certificateGroupId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_CERTIFICATEGROUPS_DEFAULTAPPLICATIONGROUP);
