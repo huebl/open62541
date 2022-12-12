@@ -216,6 +216,7 @@ configServerSecureChannel(void *application, UA_SecureChannel *channel,
     if(retval != UA_STATUSCODE_GOOD) {
         return retval;
     }
+
     /* Iterate over available endpoints and choose the correct one */
     const UA_Endpoint *endpoint = NULL;
     for(size_t i = 0; i < channel->endpointCandidatesSize; ++i) {
@@ -234,14 +235,16 @@ configServerSecureChannel(void *application, UA_SecureChannel *channel,
         break;
     }
 
-    if(endpoint == NULL)
+    if(endpoint == NULL) {
         return UA_STATUSCODE_BADSECURITYPOLICYREJECTED;
+    }
 
     /* Create the channel context and parse the sender (remote) certificate used
      * for the secureChannel. */
     retval = UA_SecureChannel_setEndpoint(channel, endpoint);
-    if(retval != UA_STATUSCODE_GOOD)
+    if(retval != UA_STATUSCODE_GOOD) {
         return retval;
+    }
 
     if(channel->endpointCandidates != NULL) {
         UA_free(channel->endpointCandidates);

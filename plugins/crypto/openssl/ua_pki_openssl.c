@@ -743,7 +743,7 @@ do_certificateVerification_verify(
     }
 
     opensslRet = X509_verify_cert (storeCtx);
-    if (opensslRet == 1) {
+    if (opensslRet == 1 || storeCtx->error == 1) { /* FIXME: Is that right? */
         ret = UA_STATUSCODE_GOOD;
 
         /* Check if the not trusted certificate has a CRL file. If there is no CRL file available for the corresponding

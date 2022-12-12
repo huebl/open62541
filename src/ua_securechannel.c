@@ -601,7 +601,7 @@ unpackPayloadOPN(UA_SecureChannel *channel, UA_Chunk *chunk, void *application) 
                 verifyCertificate(channel->certificateManager,
                                   channel->endpoint->pkiStore,
                                   &asymHeader.senderCertificate);
-                                  
+
             if(!UA_StatusCode_isGood(res)) {
                 channel->endpoint->pkiStore->appendRejectedList(channel->endpoint->pkiStore, &asymHeader.senderCertificate);
             }

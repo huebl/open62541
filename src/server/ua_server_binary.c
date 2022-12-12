@@ -900,7 +900,6 @@ processSecureChannelMessage(void *application, UA_SecureChannel *channel,
         }
         shutdownServerSecureChannel(server, channel, closeEvent);
     }
-
     return retval;
 }
 
