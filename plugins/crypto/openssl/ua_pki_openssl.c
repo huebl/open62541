@@ -742,7 +742,7 @@ do_certificateVerification_verify(
         return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
     }
 
-    opensslRet = X509_verify_cert (storeCtx);
+    opensslRet = X509_verify_cert (storeCtx); /* FIXME: Dont work with LIBRESSL! */
     if (opensslRet == 1) {
         ret = UA_STATUSCODE_GOOD;
 
@@ -784,7 +784,7 @@ do_certificateVerification_verify(
         opensslRet = X509_STORE_CTX_get_error (storeCtx);
 
         /* Check the issued certificate of a CA that is not trusted but available */
-        if(opensslRet == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN){
+        if(opensslRet == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN || opensslRet == 1){
             int                     trusted_cert_len = sk_X509_num(ctx.skTrusted);
             int                     cmpVal;
             X509                    *trusted_cert;
