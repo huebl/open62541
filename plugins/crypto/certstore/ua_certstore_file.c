@@ -831,6 +831,10 @@ UA_PKIStore_File_clear(
 			free(context->keyDir);
 			context->keyDir = NULL;
 		}
+		if (context->rootDir != NULL) {
+			free(context->rootDir);
+			context->rootDir = NULL;
+		}
 
 		free(context);
 		pkiStore->context = NULL;
