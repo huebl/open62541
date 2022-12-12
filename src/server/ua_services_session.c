@@ -651,6 +651,7 @@ void
 Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
                         const UA_ActivateSessionRequest *request,
                         UA_ActivateSessionResponse *response) {
+	UA_UserTokenPolicy *utp = NULL;
     UA_String *tmpLocaleIds;
     UA_LOCK_ASSERT(&server->serviceMutex, 1);
 
@@ -698,7 +699,6 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
     }
 
     /* Find the matching UserTokenPolicy */
-    UA_UserTokenPolicy *utp = NULL;
     selectTokenPolicy(channel, &request->userIdentityToken, &utp);
     if(!utp) {
         response->responseHeader.serviceResult = UA_STATUSCODE_BADIDENTITYTOKENINVALID;
@@ -947,13 +947,14 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
     return;
 
 securityRejected:
+    server->serverDiagnosticsSummary.securityRejectedSessionCount++;
+rejected:
+    server->serverDiagnosticsSummary.rejectedSessionCount++;
+
 	if (utp) {
 		UA_UserTokenPolicy_clear(utp);
 		UA_free((void*)utp);
 	}
-    server->serverDiagnosticsSummary.securityRejectedSessionCount++;
-rejected:
-    server->serverDiagnosticsSummary.rejectedSessionCount++;
 }
 
 void
