@@ -972,8 +972,9 @@ UA_Config_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
 }
 
 UA_EXPORT UA_StatusCode
-UA_ServerConfig_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
-                                 const UA_ByteString *certificate)
+UA_ServerConfig_PKIStore_appendRejectCertificate(
+	UA_PKIStore *pkiStore,
+    const UA_ByteString *certificate)
 {
 	return UA_Config_PKIStore_appendRejectCertificate(
 		pkiStore, certificate

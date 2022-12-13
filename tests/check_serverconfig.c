@@ -47,11 +47,13 @@ START_TEST(Server_add_configuration_capabilities) {
     UA_String str = UA_String_fromChars(validServerConfigCapabilities[0]);
     retval = UA_Server_configAddCapability(NULL, &str);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&str);
 
     /* Try to add a non valid capability */
     str = UA_String_fromChars("_XYZ_");
     retval = UA_Server_configAddCapability(server, &str);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&str);
 
     /* Add all valid capabilities */
     size_t i = 0;
@@ -119,11 +121,13 @@ START_TEST(Server_add_configuration_keyformats) {
     UA_String strEmpty = UA_String_fromChars("");
     retval = UA_Server_configAddKeyFormat(server, &strEmpty);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&strEmpty);
 
     /* Try to add a valid key format but server pointer is null */
     UA_String str = UA_String_fromChars(validServerConfigKeyFormats[0]);
     retval = UA_Server_configAddKeyFormat(NULL, &str);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&str);
 
     /* Try to add a non valid key format */
     str = UA_String_fromChars("XYZ");
