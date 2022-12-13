@@ -133,6 +133,7 @@ START_TEST(Server_add_configuration_keyformats) {
     str = UA_String_fromChars("XYZ");
     retval = UA_Server_configAddKeyFormat(server, &str);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&str);
 
     /* Add all valid keyFormats */
     size_t i = 0;

@@ -185,7 +185,7 @@ encyrptedclientconnect(UA_Client *client, const char *username, const char *pass
     UA_ClientConfig *cc = UA_Client_getConfig(client);
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
 
-    UA_ClientConfig_setDefaultEncryption(cc, NULL);
+    UA_ClientConfig_setDefaultEncryption(cc);
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
     ck_assert(client != NULL);
 
