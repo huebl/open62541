@@ -494,13 +494,6 @@ UA_SecurityPolicy_Basic256Sha256(
     channelModule->setRemoteSymIv = UA_ChannelM_Basic256Sha256_setRemoteSymIv;
     channelModule->compareCertificate = UA_ChannelM_Basic256Sha256_compareCertificate;
 
-#if 0 /* FIXME: HUK */
-    UA_StatusCode retval =
-        UA_OpenSSL_LoadLocalCertificate(&localCertificate, &policy->localCertificate);
-    if(retval != UA_STATUSCODE_GOOD)
-        return retval;
-#endif
-
     /* AsymmetricModule - signature algorithm */
     UA_SecurityPolicySignatureAlgorithm *asySigAlgorithm =
         &asymmetricModule->cryptoModule.signatureAlgorithm;

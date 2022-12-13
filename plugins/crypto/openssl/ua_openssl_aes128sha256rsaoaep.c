@@ -53,8 +53,6 @@ UA_Policy_Aes128Sha256RsaOaep_Clear_Context(UA_SecurityPolicy *policy) {
     if(policy == NULL)
         return;
 
-    // TODO: not used..
-
     return;
 }
 
@@ -523,13 +521,6 @@ UA_SecurityPolicy_Aes128Sha256RsaOaep(
     channelModule->setRemoteSymIv = UA_ChannelM_Aes128Sha256RsaOaep_setRemoteSymIv;
     channelModule->compareCertificate =
         UA_ChannelM_Aes128Sha256RsaOaep_compareCertificate;
-
-    /* Copy the certificate and add a NULL to the end */
-#if 0 /* FIXME: HUK */
-    retval = UA_copyCertificate(&policy->localCertificate, &localCertificate);
-    if(retval != UA_STATUSCODE_GOOD)
-        return retval;
-#endif
 
     /* AsymmetricModule - signature algorithm */
 
