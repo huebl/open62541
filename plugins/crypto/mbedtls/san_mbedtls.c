@@ -6,6 +6,7 @@
 #include <mbedtls/platform.h>
 #include <mbedtls/asn1write.h>
 #include <mbedtls/oid.h>
+#include <mbedtls/asn1.h>
 
 #define MBEDTLS_SAN_MAX_LEN    64
 
@@ -61,12 +62,164 @@ static size_t san_mbedtls_san_list_size(const san_mbedtls_san_list_entry_t* san_
 	return count;
 }
 
-san_mbedtls_san_list_entry_t* san_mbedtls_get_san_list_from_cert(const mbedtls_x509_crt* cert)
+static void mbedtls_asn1_sequence_free(
+	mbedtls_asn1_sequence* seq
+)
+{
+	mbedtls_asn1_sequence* cur = seq->next;
+	while (cur != NULL) {
+	    mbedtls_asn1_sequence* tmp_seq = cur;
+	    cur = cur->next;
+	    free(tmp_seq);
+	}
+}
+
+static void san_mbedtls_san_add_entry(
+    san_mbedtls_san_list_entry_t** san_list,
+	mbedtls_x509_sequence* cur
+)
+{
+	/* Create new san entry */
+	san_mbedtls_san_list_entry_t* san_list_entry = san_mbedtls_san_list_entry_new();
+	if (san_list_entry == NULL) {
+		return;
+	}
+
+	san_list_entry->san.type = cur->buf.tag;
+    memcpy(&san_list_entry->san.san.unstructured_name, &cur->buf, sizeof(cur->buf));
+    san_list_entry->next = *san_list;
+    *san_list = san_list_entry;
+
+	cur = cur->next;
+}
+
+static san_mbedtls_san_list_entry_t* san_mbedtls_san_sequence_create(
+	const mbedtls_x509_crt* cert
+)
+{
+	int ret = 0;
+	mbedtls_x509_buf oid;
+	san_mbedtls_san_list_entry_t* san_list = NULL;
+	mbedtls_asn1_sequence san_seq;
+
+	unsigned char* p = cert->v3_ext.p;
+	unsigned char* end = cert->v3_ext.p  + cert->v3_ext.len;
+
+	/* Get V3 extension sequence */
+	mbedtls_asn1_sequence v3_ext_seq;
+	v3_ext_seq.next = NULL;
+	ret = mbedtls_asn1_get_sequence_of(&p, end, &v3_ext_seq, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE);
+    if (ret != 0) {
+    	return NULL;
+    }
+
+	/* Get Object MBEDTLS_OID_SUBJECT_ALT_NAME from sequence */
+    mbedtls_asn1_sequence* cur = &v3_ext_seq;
+    while (cur != NULL) {
+
+    	/* Get oid */
+    	size_t len;
+    	p = cur->buf.p;
+        end = cur->buf.p + cur->buf.len;
+        ret = mbedtls_asn1_get_tag(&p, end, &len, MBEDTLS_ASN1_OID);
+        if (ret != 0) {
+        	cur = cur->next;
+        	continue;
+        }
+
+        oid.tag = MBEDTLS_ASN1_OID;
+        oid.len = len;
+        oid.p = p;
+
+        /* Handle only SNA attributes */
+        if( MBEDTLS_OID_CMP(MBEDTLS_OID_SUBJECT_ALT_NAME, &oid ) != 0) {
+        	cur = cur->next;
+        	continue;
+        }
+        p = p + len;
+
+        /* Handle Octet string */
+        ret = mbedtls_asn1_get_tag(&p, end, &len, MBEDTLS_ASN1_OCTET_STRING);
+        if (ret != 0) {
+        	cur = cur->next;
+        	continue;
+        }
+        end = p + len;
+
+        /* Handle Sequence  */
+        ret = mbedtls_asn1_get_tag(&p, end, &len, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE);
+        if (ret != 0) {
+            cur = cur->next;
+         	continue;
+        }
+        end = p + len;
+
+        /* Handle SNA attributes */
+        while (p < end) {
+        	/* Get attribute type */
+        	int type = p[0] & 0xFF;
+        	p++;
+
+        	/* Get attribute len */
+        	ret = mbedtls_asn1_get_len(&p, end, &len);
+        	if (ret != 0) {
+        		break;
+        	}
+
+        	switch (type)
+            {
+                case MBEDTLS_ASN1_CONTEXT_SPECIFIC | MBEDTLS_X509_SAN_DNS_NAME:
+				{
+					/* Add DNS name to sna list */
+					san_seq.buf.tag = MBEDTLS_X509_SAN_DNS_NAME;
+					san_seq.buf.len = len;
+					san_seq.buf.p = p;
+					san_seq.next = NULL;
+					san_mbedtls_san_add_entry(&san_list, &san_seq);
+					break;
+				}
+                case MBEDTLS_ASN1_CONTEXT_SPECIFIC | MBEDTLS_X509_SAN_UNIFORM_RESOURCE_IDENTIFIER:
+ 				{
+ 					/* Add URO name to sna ist */
+ 					san_seq.buf.tag = MBEDTLS_X509_SAN_UNIFORM_RESOURCE_IDENTIFIER;
+ 					san_seq.buf.len = len;
+ 					san_seq.buf.p = p;
+ 					san_seq.next = NULL;
+ 					san_mbedtls_san_add_entry(&san_list, &san_seq);
+ 					break;
+ 				}
+                case MBEDTLS_ASN1_CONTEXT_SPECIFIC | MBEDTLS_X509_SAN_IP_ADDRESS:
+ 				{
+ 					/* Add IP address to sna list */
+ 					san_seq.buf.tag = MBEDTLS_X509_SAN_IP_ADDRESS;
+ 					san_seq.buf.len = len;
+ 					san_seq.buf.p = p;
+ 					san_seq.next = NULL;
+ 					san_mbedtls_san_add_entry(&san_list, &san_seq);
+ 					break;
+ 				}
+            }
+        	p = p + len;
+        }
+
+    	cur = cur->next;
+    }
+
+
+    mbedtls_asn1_sequence_free(&v3_ext_seq);
+	return san_list;
+}
+
+san_mbedtls_san_list_entry_t* san_mbedtls_get_san_list_from_cert(
+	const mbedtls_x509_crt* cert
+)
 {
 	/* Check parameter */
 	if (cert == NULL) {
 		return NULL;
 	}
+
+	return san_mbedtls_san_sequence_create(cert);
 
 	/* Read subject alternate names from certificate */
 	san_mbedtls_san_list_entry_t* san_list = NULL;
@@ -207,6 +360,7 @@ bool san_mbedtls_get_uniform_resource_identifier(
 			uniform_resource_identifier->data =  cur->san.san.unstructured_name.p;
 			return true;
 		}
+		cur = cur->next;
 	}
 	return false;
 }
