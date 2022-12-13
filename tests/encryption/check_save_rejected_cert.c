@@ -408,11 +408,9 @@ START_TEST(encryption_connect_reject_cert) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-#if 0
     cc->clientDescription.applicationUri =
         UA_STRING_ALLOC("urn:open62541.server.application");
-#endif
-    UA_ClientConfig_setDefaultEncryption(cc, NULL);
+    UA_ClientConfig_setDefaultEncryption(cc);
 
     cc->securityPolicyUri =
         UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");
@@ -422,10 +420,10 @@ START_TEST(encryption_connect_reject_cert) {
         UA_ByteString_clear(&trustList[deleteCount]);
     }
 
-#ifdef __linux__
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
-#if 0 /* FIXME: TODO */
+#if 0
+    printf(">>>> %x\n", retval);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADSECURITYCHECKSFAILED);
 
     char rejectedFileName [256] = {0};
@@ -446,7 +444,6 @@ START_TEST(encryption_connect_reject_cert) {
 #endif
 
     UA_Client_disconnect(client);
-#endif
     UA_Client_delete(client);
 }
 END_TEST

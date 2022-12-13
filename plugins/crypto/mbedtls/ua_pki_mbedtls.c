@@ -506,6 +506,7 @@ static UA_StatusCode CertificateManager_createCSR(
     ret = mbedtls_pk_parse_key(&pk, privateKeyStr0.data, privateKeyStr0.length, NULL, 0);
     UA_ByteString_clear(&privateKeyStr0);
     if(ret) {
+    	mbedtls_x509_crt_free(&x509Cert);
     	return UA_STATUSCODE_BADCERTIFICATEINVALID;
     }
 
@@ -520,6 +521,8 @@ static UA_StatusCode CertificateManager_createCSR(
     mbedtls_ctr_drbg_init(&ctrDrbg);
     unsigned char pers[] = "saPfdfUdftljdh/sj4:59iw5St#984mf83+dkGJRE";
     if (mbedtls_ctr_drbg_seed(&ctrDrbg, mbedtls_entropy_func, &entropy_ctx, pers, sizeof(pers)) != 0) {
+    	mbedtls_x509_crt_free(&x509Cert);
+    	mbedtls_pk_free(&pk);
         return UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -532,6 +535,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	                                                  MBEDTLS_X509_KU_NON_REPUDIATION |
 												      MBEDTLS_X509_KU_KEY_ENCIPHERMENT) != 0) {
 		mbedtls_pk_free(&pk);
+		mbedtls_x509_crt_free(&x509Cert);
 	    mbedtls_x509write_csr_free(&request);
 	    mbedtls_entropy_free(&entropy_ctx);
 	    return UA_STATUSCODE_BADINTERNALERROR;
@@ -541,6 +545,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	if (entropy != NULL && entropy->length > 0) {
 	    if (mbedtls_entropy_update_manual(&entropy_ctx, (const unsigned char*)(entropy->data),
 	                                      entropy->length) != 0) {
+	    	mbedtls_x509_crt_free(&x509Cert);
 	    	mbedtls_pk_free(&pk);
 	        mbedtls_x509write_csr_free(&request);
 	        mbedtls_entropy_free(&entropy_ctx);
@@ -554,6 +559,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	    /* subject from argument */
 	    subj = (char *)UA_malloc(subject->length + 1);
 	    if (subj == NULL) {
+	    	mbedtls_x509_crt_free(&x509Cert);
 	    	mbedtls_pk_free(&pk);
 	        mbedtls_x509write_csr_free(&request);
 	        mbedtls_entropy_free(&entropy_ctx);
@@ -576,6 +582,7 @@ static UA_StatusCode CertificateManager_createCSR(
     	mbedtls_x509_name s = x509Cert.subject;
         subj = (char *)UA_malloc(subjectMaxSize);
         if (subj == NULL) {
+        	mbedtls_x509_crt_free(&x509Cert);
             mbedtls_x509write_csr_free(&request);
     		mbedtls_entropy_free(&entropy_ctx);
     		return UA_STATUSCODE_BADOUTOFMEMORY;
@@ -593,6 +600,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	ret = mbedtls_x509write_csr_set_subject_name(&request, subj);
 	if(ret != 0) {
 	    if (ret != 0) {
+	    	mbedtls_x509_crt_free(&x509Cert);
 	    	mbedtls_pk_free(&pk);
 	        mbedtls_x509write_csr_free(&request);
 	        mbedtls_entropy_free(&entropy_ctx);
@@ -607,6 +615,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	if (san_list != NULL) {
 	    if (san_mbedtls_set_san_list_to_csr(&request, san_list) <= 0) {
 	    	san_mbedtls_san_list_entry_free(san_list);
+	    	mbedtls_x509_crt_free(&x509Cert);
 	    	mbedtls_pk_free(&pk);
 	    	mbedtls_x509write_csr_free(&request);
 	    	mbedtls_entropy_free(&entropy_ctx);
@@ -623,6 +632,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	memset(requestBuf, 0, sizeof(requestBuf));
 	ret = mbedtls_x509write_csr_der(&request, requestBuf, sizeof(requestBuf), mbedtls_ctr_drbg_random, &ctrDrbg);
 	if(ret <= 0 ) {
+		mbedtls_x509_crt_free(&x509Cert);
 		mbedtls_pk_free(&pk);
 	    mbedtls_x509write_csr_free(&request);
 	    mbedtls_entropy_free(&entropy_ctx);
@@ -640,6 +650,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	memcpy(csrByteString->data, requestBuf + offset, byteCount);
 	*csr = csrByteString;
 
+	mbedtls_x509_crt_free(&x509Cert);
 	mbedtls_pk_free(&pk);
     mbedtls_x509write_csr_free(&request);
 	mbedtls_entropy_free(&entropy_ctx);

@@ -146,7 +146,7 @@ START_TEST(encryption_connect) {
     client = UA_Client_new();
     ck_assert(client != NULL);
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-    UA_ClientConfig_setDefaultEncryption(cc, NULL);
+    UA_ClientConfig_setDefaultEncryption(cc);
 
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");
@@ -209,7 +209,7 @@ START_TEST(encryption_connect_pem) {
     client = UA_Client_new();
     ck_assert(client != NULL);
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-    UA_ClientConfig_setDefaultEncryption(cc, NULL);
+    UA_ClientConfig_setDefaultEncryption(cc);
 
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep");

@@ -58,7 +58,7 @@ UA_ClientConfig_PKIStore_storePrivateKey(UA_PKIStore *pkiStore,
 
 #ifdef UA_ENABLE_ENCRYPTION
 UA_StatusCode UA_EXPORT
-UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config, const UA_ByteString *pkiDir);
+UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config);
 #endif
 
 _UA_END_DECLS

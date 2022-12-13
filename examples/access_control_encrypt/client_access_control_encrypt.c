@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     UA_Client *client = UA_Client_new();
     UA_ClientConfig *config = UA_Client_getConfig(client);
     config->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
-    UA_ClientConfig_setDefaultEncryption(config, NULL);
+    UA_ClientConfig_setDefaultEncryption(config);
 
 	UA_ClientConfig_PKIStore_storeCertificate(
  		UA_ClientConfig_PKIStore_getDefault(client),

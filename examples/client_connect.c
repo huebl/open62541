@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
     if(certfile) {
         UA_ByteString certificate = loadFile(certfile);
         UA_ByteString privateKey  = loadFile(keyfile);
-        UA_ClientConfig_setDefaultEncryption(cc, NULL);
+        UA_ClientConfig_setDefaultEncryption(cc);
 
      	UA_ClientConfig_PKIStore_storeCertificate(
      		UA_ClientConfig_PKIStore_getDefault(client),

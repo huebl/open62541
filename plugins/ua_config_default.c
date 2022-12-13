@@ -1180,7 +1180,9 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
     	}
     	memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    	retval = UA_PKIStore_File_create(&config->pkiStores[0], &config->certificateGroupId, NULL, NULL);
+    	retval = UA_PKIStore_File_create(
+    		&config->pkiStores[0], &config->certificateGroupId, NULL, NULL
+		);
     	if(retval != UA_STATUSCODE_GOOD) {
     		/* UA_ServerConfig_clean(config); */
     		return retval;
@@ -1207,7 +1209,7 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
 
 #ifdef UA_ENABLE_ENCRYPTION
 UA_StatusCode
-UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config, const UA_ByteString *pkiDir) {
+UA_ClientConfig_setDefaultEncryption(UA_ClientConfig *config) {
     UA_StatusCode retval = UA_ClientConfig_setDefault(config);
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
