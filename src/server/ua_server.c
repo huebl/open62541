@@ -995,7 +995,7 @@ UA_Server_configAddCapability(UA_Server *server, const UA_String *newCapability)
 
 	retval = UA_Server_writeValue(server,
 	         UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES), capabilities);
-
+	UA_Variant_clear(&capabilities);
 	return retval;
 }
 

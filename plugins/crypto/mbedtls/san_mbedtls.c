@@ -62,6 +62,7 @@ static size_t san_mbedtls_san_list_size(const san_mbedtls_san_list_entry_t* san_
 	return count;
 }
 
+#if MBEDTLS_VERSION_NUMBER < 0x02130000
 static void mbedtls_asn1_sequence_free(
 	mbedtls_asn1_sequence* seq
 )
@@ -73,6 +74,7 @@ static void mbedtls_asn1_sequence_free(
 	    free(tmp_seq);
 	}
 }
+#endif
 
 static void san_mbedtls_san_add_entry(
     san_mbedtls_san_list_entry_t** san_list,
@@ -89,8 +91,6 @@ static void san_mbedtls_san_add_entry(
     memcpy(&san_list_entry->san.san.unstructured_name, &cur->buf, sizeof(cur->buf));
     san_list_entry->next = *san_list;
     *san_list = san_list_entry;
-
-	cur = cur->next;
 }
 
 static san_mbedtls_san_list_entry_t* san_mbedtls_san_sequence_create(
@@ -205,7 +205,6 @@ static san_mbedtls_san_list_entry_t* san_mbedtls_san_sequence_create(
     	cur = cur->next;
     }
 
-
     mbedtls_asn1_sequence_free(&v3_ext_seq);
 	return san_list;
 }
@@ -219,7 +218,9 @@ san_mbedtls_san_list_entry_t* san_mbedtls_get_san_list_from_cert(
 		return NULL;
 	}
 
+#if MBEDTLS_VERSION_NUMBER < 0x02130000
 	return san_mbedtls_san_sequence_create(cert);
+#else
 
 	/* Read subject alternate names from certificate */
 	san_mbedtls_san_list_entry_t* san_list = NULL;
@@ -254,21 +255,19 @@ san_mbedtls_san_list_entry_t* san_mbedtls_get_san_list_from_cert(
     		}
     	}
 
-		san_list_entry = san_mbedtls_san_list_entry_new();
-		if (san_list_entry == NULL) {
-			san_mbedtls_san_list_entry_free(san_list);
-			return NULL;
-		}
-
-		san_list_entry->san.type = type;
-        memcpy(&san_list_entry->san.san.unstructured_name, &cur->buf, sizeof(cur->buf));
-        if (san_list != NULL) san_list_entry->next = san_list;
-        san_list = san_list_entry;
+		/* Add to sna ist */
+        mbedtls_asn1_sequence san_seq;
+		san_seq.buf.tag = type;
+		san_seq.buf.len = sizeof(cur->buf);
+		san_seq.buf.p = type;
+		san_seq.next = NULL;
+		san_mbedtls_san_add_entry(&san_list, &san_seq);
 
     	cur = cur->next;
     }
 
 	return san_list;
+#endif
 }
 
 int san_mbedtls_set_san_list_to_csr(mbedtls_x509write_csr* req,
