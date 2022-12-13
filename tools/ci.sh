@@ -266,6 +266,7 @@ function unit_tests_encryption {
 function unit_tests_encryption_mbedtls_pubsub {
     mkdir -p build; cd build; rm -rf *
     cmake -DCMAKE_BUILD_TYPE=Debug \
+	  -DUA_BUILD_EXAMPLES=ON \
           -DUA_BUILD_EXAMPLES=ON \
           -DUA_BUILD_UNIT_TESTS=ON \
           -DUA_ENABLE_DISCOVERY=ON \

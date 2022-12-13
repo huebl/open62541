@@ -148,21 +148,18 @@ START_TEST(encryption_connect) {
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
-#if 0
     UA_Variant val;
     UA_Variant_init(&val);
     UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_STATE);
     retval = UA_Client_readValueAttribute(client, nodeId, &val);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     UA_Variant_clear(&val);
-#endif
 
     UA_Client_disconnect(client);
     UA_Client_delete(client);
 }
 END_TEST
 
-#if 0
 START_TEST(encryption_connect_pem) {
     UA_Client *client = NULL;
     UA_EndpointDescription* endpointArray = NULL;
@@ -224,7 +221,6 @@ START_TEST(encryption_connect_pem) {
     UA_Client_delete(client);
 }
 END_TEST
-#endif
 
 static Suite* testSuite_encryption(void) {
     Suite *s = suite_create("Encryption");
@@ -232,9 +228,7 @@ static Suite* testSuite_encryption(void) {
     tcase_add_checked_fixture(tc_encryption, setup, teardown);
 #ifdef UA_ENABLE_ENCRYPTION
     tcase_add_test(tc_encryption, encryption_connect);
-#if 0
     tcase_add_test(tc_encryption, encryption_connect_pem);
-#endif
 #endif /* UA_ENABLE_ENCRYPTION */
     suite_add_tcase(s,tc_encryption);
     return s;
