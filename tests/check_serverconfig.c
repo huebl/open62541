@@ -491,7 +491,6 @@ START_TEST(Server_create_csr) {
 	/* Clear data hold in the certificate manager */
 	config->certificateManager.clear(&config->certificateManager);
 	ck_assert(config->certificateManager.createCertificateSigningRequest == NULL);
-	ck_assert_ptr_eq(config->certificateManager.keyAndCertContext, NULL);
 
 	UA_Server_delete(server);
 }

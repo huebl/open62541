@@ -54,7 +54,21 @@ typedef struct {
     mbedtls_x509_crl trustedIssuerCrls;
 } CertInfo;
 
-#ifdef __linux__ /* Linux only so far */
+static void CertInfo_clear(CertInfo* certInfo)
+{
+	mbedtls_x509_crt_free(&certInfo->trustedCertificates);
+	mbedtls_x509_crt_free(&certInfo->trustedIssuers);
+	mbedtls_x509_crl_free(&certInfo->trustedCertificateCrls);
+	mbedtls_x509_crl_free(&certInfo->trustedIssuerCrls);
+}
+
+static void CertInfo_init(CertInfo* certInfo)
+{
+	mbedtls_x509_crt_init(&certInfo->trustedCertificates);
+	mbedtls_x509_crt_init(&certInfo->trustedIssuers);
+	mbedtls_x509_crl_init(&certInfo->trustedCertificateCrls);
+	mbedtls_x509_crl_init(&certInfo->trustedIssuerCrls);
+}
 
 #include <dirent.h>
 #include <limits.h>
@@ -120,8 +134,6 @@ error:
     return retval;
 }
 
-#endif
-
 /* Create a ByteString filled with 'data' */
 static UA_ByteString *byteStrNew(const unsigned char *data, size_t len) {
     UA_ByteString *dupstr = UA_ByteString_new();
@@ -150,12 +162,10 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
 	if(certificateManager == NULL || pkiStore == NULL || certificate == NULL) {
         return UA_STATUSCODE_BADINVALIDARGUMENT;
     }
-    CertInfo *ci = (CertInfo *)certificateManager->context;
-    if(!ci) {
-        return UA_STATUSCODE_BADINTERNALERROR;
-    }
 
-    UA_StatusCode certFlag = reloadCertificates(ci, pkiStore);
+    CertInfo ci;
+    CertInfo_init(&ci);
+    UA_StatusCode certFlag = reloadCertificates(&ci, pkiStore);
     if(certFlag != UA_STATUSCODE_GOOD) {
         return certFlag;
     }
@@ -179,6 +189,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
         /* mbedtls_strerror(mbedErr, errBuff, 300); */
         /* UA_LOG_WARNING(data->policyContext->securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY, */
         /*                "Could not parse the remote certificate with error: %s", errBuff); */
+    	CertInfo_clear(&ci);
         return UA_STATUSCODE_BADSECURITYCHECKSFAILED;
     }
 
@@ -192,8 +203,8 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
 
     uint32_t flags = 0;
     mbedErr = mbedtls_x509_crt_verify_with_profile(&remoteCertificate,
-                                                   &ci->trustedCertificates,
-                                                   &ci->trustedCertificateCrls,
+                                                   &ci.trustedCertificates,
+                                                   &ci.trustedCertificateCrls,
                                                    &crtProfile, NULL, &flags, NULL, NULL);
 
     /* Flag to check if the remote certificate is trusted or not */
@@ -201,7 +212,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
 
     /* Check if the remoteCertificate is present in the trustList while mbedErr value is not zero */
     if(mbedErr && !(flags & MBEDTLS_X509_BADCERT_EXPIRED) && !(flags & MBEDTLS_X509_BADCERT_FUTURE)) {
-        for(tempCert = &ci->trustedCertificates; tempCert != NULL; tempCert = tempCert->next) {
+        for(tempCert = &ci.trustedCertificates; tempCert != NULL; tempCert = tempCert->next) {
             if(remoteCertificate.raw.len == tempCert->raw.len &&
                memcmp(remoteCertificate.raw.p, tempCert->raw.p, remoteCertificate.raw.len) == 0) {
                 TRUSTED = REMOTECERTIFICATETRUSTED;
@@ -214,8 +225,8 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
      * of remoteCertificate is present in issuerList */
     if(TRUSTED && mbedErr) {
         mbedErr = mbedtls_x509_crt_verify_with_profile(&remoteCertificate,
-                                                       &ci->trustedIssuers,
-                                                       &ci->trustedCertificateCrls,
+                                                       &ci.trustedIssuers,
+                                                       &ci.trustedCertificateCrls,
                                                        &crtProfile, NULL, &flags, NULL, NULL);
 
         /* Check if the parent certificate has a CRL file available */
@@ -224,10 +235,10 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
             int dualParent = 0;
 
             /* Identify the topmost parent certificate for the remoteCertificate */
-            for(parentCert = &ci->trustedIssuers; parentCert != NULL; parentCert = parentCert->next) {
+            for(parentCert = &ci.trustedIssuers; parentCert != NULL; parentCert = parentCert->next) {
                 if(memcmp(remoteCertificate.issuer_raw.p, parentCert->subject_raw.p, parentCert->subject_raw.len) ==
                    0) {
-                    for(parentCert_2 = &ci->trustedCertificates;
+                    for(parentCert_2 = &ci.trustedCertificates;
                         parentCert_2 != NULL; parentCert_2 = parentCert_2->next) {
                         if(memcmp(parentCert->issuer_raw.p, parentCert_2->subject_raw.p,
                                   parentCert_2->subject_raw.len) == 0) {
@@ -253,7 +264,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
             /* If a parent certificate is found traverse the revocationList and identify
              * if there is any CRL file that corresponds to the parentCertificate */
             if(parentFound == PARENTFOUND) {
-                tempCrl = &ci->trustedCertificateCrls;
+                tempCrl = &ci.trustedCertificateCrls;
                 while(tempCrl != NULL) {
                     if(tempCrl->version != 0 &&
                        tempCrl->issuer_raw.len == parentCert->subject_raw.len &&
@@ -276,6 +287,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
                 		/* UA_LOG_WARNING(data->policyContext->securityPolicy->logger, UA_LOGCATEGORY_SECURITYPOLICY,
                 		                "Could not append certificate to rejected list"); */
                 	}
+                	CertInfo_clear(&ci);
                     return UA_STATUSCODE_BADCERTIFICATEISSUERREVOCATIONUNKNOWN;
                 }
 
@@ -289,7 +301,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
          * has CRL file corresponding to it */
 
         /* Identify the parent certificate of the remoteCertificate */
-        for(parentCert = &ci->trustedCertificates; parentCert != NULL; parentCert = parentCert->next) {
+        for(parentCert = &ci.trustedCertificates; parentCert != NULL; parentCert = parentCert->next) {
             if(memcmp(remoteCertificate.issuer_raw.p, parentCert->subject_raw.p, parentCert->subject_raw.len) == 0) {
                 parentFound = PARENTFOUND;
                 break;
@@ -301,7 +313,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
          * if there is any CRL file that corresponds to the parentCertificate */
         if(parentFound == PARENTFOUND &&
             memcmp(remoteCertificate.issuer_raw.p, remoteCertificate.subject_raw.p, remoteCertificate.subject_raw.len) != 0) {
-            tempCrl = &ci->trustedCertificateCrls;
+            tempCrl = &ci.trustedCertificateCrls;
             while(tempCrl != NULL) {
                 if(tempCrl->version != 0 &&
                    tempCrl->issuer_raw.len == parentCert->subject_raw.len &&
@@ -322,6 +334,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
             	if (addResult != UA_STATUSCODE_GOOD) {
             		// TODO: Log error
             	}
+            	CertInfo_clear(&ci);
                 return UA_STATUSCODE_BADCERTIFICATEREVOCATIONUNKNOWN;
             }
 
@@ -353,6 +366,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
     	if (addResult != UA_STATUSCODE_GOOD) {
     		// TODO: Log error
     	}
+    	CertInfo_clear(&ci);
         return UA_STATUSCODE_BADCERTIFICATEUSENOTALLOWED;
     }
 #endif
@@ -379,6 +393,7 @@ do_certificateVerification_verify(UA_CertificateManager *certificateManager,
         }
     }
 
+    CertInfo_clear(&ci);
     mbedtls_x509_crt_free(&remoteCertificate);
     return retval;
 }
@@ -398,13 +413,12 @@ certificateVerification_verify(UA_CertificateManager *certificateManager,
 }
 
 static UA_StatusCode
-certificateVerification_verifyApplicationURI(UA_CertificateManager *certificateManager,
-                                             UA_PKIStore *pkiStore,
-                                             const UA_ByteString *certificate,
-                                             const UA_String *applicationURI) {
-	CertInfo *ci = (CertInfo *)certificateManager->context;
-    if(!ci)
-        return UA_STATUSCODE_BADINTERNALERROR;
+certificateVerification_verifyApplicationURI(
+	UA_CertificateManager *certificateManager,
+    UA_PKIStore *pkiStore,
+    const UA_ByteString *certificate,
+    const UA_String *applicationURI
+) {
 
     /* Parse the certificate */
     mbedtls_x509_crt remoteCertificate;
@@ -678,12 +692,6 @@ UA_CertificateManager_create(UA_CertificateManager *certificateManager) {
 	    return UA_STATUSCODE_BADINVALIDARGUMENT;
 	}
 
-    CertInfo *ci = (CertInfo *)UA_malloc(sizeof(CertInfo));
-    if(!ci)
-        return UA_STATUSCODE_BADOUTOFMEMORY;
-    memset(ci, 0, sizeof(CertInfo));
-
-    certificateManager->context = (void *)ci;
     certificateManager->verifyCertificate = certificateVerification_verify;
     certificateManager->verifyApplicationURI = certificateVerification_verifyApplicationURI;
 	certificateManager->createCertificateSigningRequest =  CertificateManager_createCSR;

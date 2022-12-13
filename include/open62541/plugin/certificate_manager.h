@@ -34,9 +34,6 @@ struct UA_CertificateManager;
 typedef struct UA_CertificateManager UA_CertificateManager;
 
 struct UA_CertificateManager {
-    void *context;
-    void *keyAndCertContext;
-
     /* Verify the certificate against the configured policies and trust chain. */
     UA_StatusCode (*verifyCertificate)(UA_CertificateManager *certificateManager,
     	    	                       UA_PKIStore *pkiStore,
