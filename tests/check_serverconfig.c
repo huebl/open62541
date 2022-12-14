@@ -474,6 +474,7 @@ START_TEST(Server_create_csr) {
 	);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	UA_ByteString_clear(csr);
+	UA_free(csr);
 	csr = NULL;
 
 	/* Create CSR with subject and additional entropy, ok */

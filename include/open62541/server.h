@@ -189,6 +189,7 @@ struct UA_ServerConfig {
     size_t pkiStoresSize;
     UA_PKIStore *pkiStores;
     size_t rejectedListMethodMaxListSize;
+    UA_String* pkiDir;
 
     size_t endpointsSize;
     UA_Endpoint *endpoints;

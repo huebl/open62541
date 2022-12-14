@@ -233,6 +233,7 @@ setDefaultConfig(UA_ServerConfig *conf, UA_UInt16 portNumber) {
     }
 
     /* Endpoints */
+    conf->pkiDir = NULL;
     conf->endpoints = NULL;
     conf->endpointsSize = 0;
     conf->rejectedListMethodMaxListSize = 0;
@@ -499,7 +500,12 @@ UA_ServerConfig_setMinimalCustomBuffer(UA_ServerConfig *config, UA_UInt16 portNu
     }
     memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File_create(&config->pkiStores[0], &certificateGroupId, NULL, NULL);
+    retval = UA_PKIStore_File_create(
+    	&config->pkiStores[0],
+		&certificateGroupId,
+		config->pkiDir,
+		NULL
+	);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ServerConfig_clean(config);
         return retval;
@@ -692,7 +698,12 @@ UA_ServerConfig_setDefaultWithSecurityPolicies(UA_ServerConfig *conf, UA_UInt16 
     }
     memset((char*)conf->pkiStores, 0x00, sizeof(UA_PKIStore));
 
-    retval = UA_PKIStore_File_create(&conf->pkiStores[conf->pkiStoresSize++], &certType, NULL, NULL);
+    retval = UA_PKIStore_File_create(
+    	&conf->pkiStores[conf->pkiStoresSize++],
+		&certType,
+		conf->pkiDir,
+		NULL
+	);
     if(retval != UA_STATUSCODE_GOOD) {
     	UA_LOG_ERROR(&conf->logger, UA_LOGCATEGORY_USERLAND,
     	    "Could not create default PKIStore with error code %s",
@@ -1181,7 +1192,10 @@ UA_ClientConfig_setDefault(UA_ClientConfig *config) {
     	memset((char*)config->pkiStores, 0x00, sizeof(UA_PKIStore));
 
     	retval = UA_PKIStore_File_create(
-    		&config->pkiStores[0], &config->certificateGroupId, NULL, NULL
+    		&config->pkiStores[0],
+			&config->certificateGroupId,
+			config->pkiDir,
+			NULL
 		);
     	if(retval != UA_STATUSCODE_GOOD) {
     		/* UA_ServerConfig_clean(config); */

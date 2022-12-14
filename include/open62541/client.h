@@ -143,6 +143,7 @@ typedef struct {
     UA_SecurityPolicy *securityPolicies;
 
     /* One PKIStore corresponds to one certificate Group */
+    UA_String* pkiDir;
     UA_NodeId certificateGroupId;
     size_t pkiStoresSize;
     UA_PKIStore *pkiStores;

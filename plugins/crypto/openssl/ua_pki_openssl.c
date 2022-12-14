@@ -671,25 +671,33 @@ static UA_StatusCode certificateManager_createCSR(
 
 	/* Get X509 certificate */
 	X509* x509Certificate = UA_OpenSSL_LoadCertificate(&certificateStr);
-	if (x509Certificate == NULL) { /* FIXE: HUK Speicher freigeben */
+	UA_ByteString_clear(&certificateStr);
+	if (x509Certificate == NULL) {
+		X509_free(x509Certificate);
 		return UA_STATUSCODE_BADCERTIFICATEINVALID;
 	}
 
 	/* Get private Key */
 	EVP_PKEY *privateKey = UA_OpenSSL_LoadPrivateKey(&privateKeyStr);
-	if (privateKey == NULL) { /* FIXE: HUK Speicher freigeben */
+	UA_ByteString_clear(&privateKeyStr);
+	if (privateKey == NULL) {
+		X509_free(x509Certificate);
 		return UA_STATUSCODE_BADCERTIFICATEINVALID;
 	}
 
 	/* Create X509 certificate request */
 	X509_REQ* request = X509_REQ_new();
 	if (request == NULL) {
+		X509_free(x509Certificate);
+		EVP_PKEY_free(privateKey);
 	    return UA_STATUSCODE_BADOUTOFMEMORY;
 	}
 
 	/* Set version in X509 certificate request */
 	ret = X509_REQ_set_version(request, 0);
 	if (ret != 1) {
+		X509_free(x509Certificate);
+		EVP_PKEY_free(privateKey);
 		X509_REQ_free(request);
 		return UA_STATUSCODE_BADOUTOFMEMORY;
 	}
@@ -703,6 +711,8 @@ static UA_StatusCode certificateManager_createCSR(
 	X509_EXTENSION *key_usage_ext = NULL;
 	key_usage_ext = X509V3_EXT_conf_nid(NULL, NULL, NID_key_usage, "digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment");
 	if (key_usage_ext == NULL) {
+		X509_free(x509Certificate);
+		EVP_PKEY_free(privateKey);
 		X509_REQ_free(request);
 		sk_X509_EXTENSION_free(exts);
 		return UA_STATUSCODE_BADINTERNALERROR;
@@ -731,12 +741,16 @@ static UA_StatusCode certificateManager_createCSR(
 	if (subject != NULL && subject->length > 0) {
 	    name = X509_NAME_new();
 	    if (name == NULL) {
+	    	X509_free(x509Certificate);
+	    	EVP_PKEY_free(privateKey);
 	    	X509_REQ_free(request);
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 
 	    /* add subject attributes to name */
 	    if (!add_subject_attributes(subject, name)) {
+	    	X509_free(x509Certificate);
+	    	EVP_PKEY_free(privateKey);
 	    	X509_REQ_free(request);
 	    	X509_NAME_free(name);
 	    	return UA_STATUSCODE_BADINTERNALERROR;
@@ -746,6 +760,8 @@ static UA_StatusCode certificateManager_createCSR(
 	    /* Get subject name from certificate */
 	    X509_NAME* tmpName = X509_get_subject_name(x509Certificate);
 	    if (tmpName == NULL) {
+	    	X509_free(x509Certificate);
+	    	EVP_PKEY_free(privateKey);
 	    	X509_REQ_free(request);
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }
@@ -754,7 +770,10 @@ static UA_StatusCode certificateManager_createCSR(
 
 	/* Set the subject in CSR context */
 	if (!X509_REQ_set_subject_name(request, name)) {
+		X509_free(x509Certificate);
+		EVP_PKEY_free(privateKey);
 	    X509_REQ_free(request);
+	    X509_NAME_free(name);
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
 	X509_NAME_free(name);
@@ -762,14 +781,18 @@ static UA_StatusCode certificateManager_createCSR(
 	/* Set public key in CSR context */
 	EVP_PKEY* pubkey = X509_get_pubkey(x509Certificate);
 	if (pubkey == NULL) {
+		X509_free(x509Certificate);
+		EVP_PKEY_free(privateKey);
 	    X509_REQ_free(request);
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
 	if (!X509_REQ_set_pubkey(request, pubkey)) {
+		X509_free(x509Certificate);
 		EVP_PKEY_free(pubkey);
 	    X509_REQ_free(request);
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
+	X509_free(x509Certificate);
 	EVP_PKEY_free(pubkey);
 
 	/* Sign the CSR */

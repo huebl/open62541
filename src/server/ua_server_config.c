@@ -91,6 +91,11 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
     if(config->certificateManager.clear)
         config->certificateManager.clear(&config->certificateManager);
 
+    /* PKI Store */
+    if (config->pkiDir != NULL) {
+    	UA_free(config->pkiDir);
+    	config->pkiDir = NULL;
+    }
     if(config->pkiStores != NULL) {
         for(size_t i = 0; i < config->pkiStoresSize; ++i) {
             if(config->pkiStores[i].clear)

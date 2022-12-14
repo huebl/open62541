@@ -16,7 +16,7 @@ UA_StatusCode
 UA_PKIStore_File_create(
 	UA_PKIStore *pkiStore,
 	UA_NodeId *certificateGroupId,
-	char* pkiDir,
+	UA_String* pkiDir,
 	UA_StatusCode (*makeCertThumbprint)(
 		const UA_ByteString* certificate,
 		UA_ByteString* thumbprint

@@ -56,6 +56,7 @@ writeByteStringToFile(const char *const path, const UA_ByteString *data) {
     /* Write byte string to file */
     size_t len = fwrite(data->data, sizeof(UA_Byte), data->length * sizeof(UA_Byte), fp);
     if(len != data->length) {
+    	fclose(fp);
     	retval = UA_STATUSCODE_BADINTERNALERROR;
     }
 
@@ -665,7 +666,7 @@ clear_file(UA_PKIStore *certStore) {
 
 static UA_StatusCode
 create_root_directory(
-	const char* directory,
+	UA_String* directory,
 	const UA_NodeId *certificateGroupId,
 	char** rootDir,
 	size_t* rootDirLen
@@ -676,8 +677,12 @@ create_root_directory(
 	*rootDirLen = 0;
 
 	/* Set base directory */
+	memset(rootDirectory, 0x00, PATH_MAX);
 	if (directory != NULL) {
-		strncpy(rootDirectory, directory, PATH_MAX);
+		if (directory->length >= PATH_MAX) {
+			return UA_STATUSCODE_BADINTERNALERROR;
+		}
+		memcpy(rootDirectory, directory->data, directory->length);
 	}
 	else {
 	    if(getcwd(rootDirectory, PATH_MAX) == NULL) {
@@ -728,7 +733,7 @@ UA_StatusCode
 UA_PKIStore_File_create(
 	UA_PKIStore *pkiStore,
 	UA_NodeId *certificateGroupId,
-	char* pkiDir,
+	UA_String* pkiDir,
 	UA_StatusCode (*makeCertThumbprint)(
 		const UA_ByteString* certificate,
 		UA_ByteString* thumbprint
