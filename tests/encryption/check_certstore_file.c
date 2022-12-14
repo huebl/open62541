@@ -318,6 +318,7 @@ START_TEST(store_and_read_certificate) {
 	/* Check content of certificate */
 	int cmpresult = memcmp(certificateOut.data, CERT_DER_DATA_1, CERT_DER_LENGTH_1);
 	ck_assert_int_eq(cmpresult, 0);
+	UA_ByteString_clear(&certificateOut);
 }
 END_TEST
 
@@ -350,6 +351,7 @@ START_TEST(store_and_read_privatekey) {
 	/* Check content of certificate */
 	int cmpresult = memcmp(privateKeyOut.data, KEY_DER_DATA_1, KEY_DER_LENGTH_1);
 	ck_assert_int_eq(cmpresult, 0);
+	UA_ByteString_clear(&privateKeyOut);
 
 	UA_PKIStore_File_clear(&pkiStore);
 }

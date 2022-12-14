@@ -72,6 +72,8 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
     UA_EndpointDescription_clear(&config->endpointDescription);
     UA_UserTokenPolicy_clear(&config->userTokenPolicy);
 
+    UA_String_clear(&config->clientDescription.applicationUri);
+
     /* Delete certificate manager */
     if(config->certificateManager.clear) {
         config->certificateManager.clear(&config->certificateManager);

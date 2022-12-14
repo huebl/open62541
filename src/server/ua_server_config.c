@@ -18,6 +18,7 @@ UA_ServerConfig_clean(UA_ServerConfig *config) {
     /* Server Description */
     UA_BuildInfo_clear(&config->buildInfo);
     UA_ApplicationDescription_clear(&config->applicationDescription);
+
 #ifdef UA_ENABLE_DISCOVERY_MULTICAST
     UA_MdnsDiscoveryConfiguration_clear(&config->mdnsConfig);
     UA_String_clear(&config->mdnsInterfaceIP);

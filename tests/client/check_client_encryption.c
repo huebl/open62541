@@ -110,7 +110,6 @@ START_TEST(encryption_reconnect_session) {
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
     ck_assert(client != NULL);
 
-#if 0 /* FIXME: HUK */
     /* Secure client connect */
     UA_StatusCode retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
@@ -122,7 +121,7 @@ START_TEST(encryption_reconnect_session) {
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     UA_Variant_clear(&val);
 
-    UA_NodeId oldAuthToken = client->authenticationToken
+    UA_NodeId oldAuthToken = client->authenticationToken;
 
     /* Close the SecureChannel without closing the session */
     UA_Client_disconnectSecureChannel(client);
@@ -137,9 +136,9 @@ START_TEST(encryption_reconnect_session) {
     UA_Variant_clear(&val);
 
     ck_assert(UA_NodeId_equal(&oldAuthToken, &client->authenticationToken));
+
     UA_Client_disconnect(client);
     UA_Client_delete(client);
-#endif
 }
 END_TEST
 
