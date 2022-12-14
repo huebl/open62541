@@ -83,15 +83,6 @@ setup_endpoint(UA_SecureChannel* channel) {
 	return UA_SecureChannel_setEndpoint(secureChannel, endpoint);
 }
 
-
-static void
-teardown_endpoint(void) {
-	UA_Endpoint_clear(endpoint);
-	UA_free(endpoint);
-	teardown_pkiStore();
-}
-
-
 static void
 setup_secureChannel(void) {
     TestingPolicy(&dummyPolicy, dummyCertificate, &fCalled, &keySizes);
@@ -106,10 +97,10 @@ setup_secureChannel(void) {
 
 static void
 teardown_secureChannel(void) {
-    UA_SecureChannel_clear(&testChannel);
+	teardown_pkiStore();
+    UA_SecureChannel_clear(&testChannel, true);
     dummyPolicy.clear(&dummyPolicy);
     UA_ByteString_clear(&sentData);
-    teardown_endpoint();
 }
 
 static void
@@ -161,10 +152,9 @@ START_TEST(SecureChannel_initAndDelete) {
                   "Expected makeCertificateThumbprint to have been called");
     ck_assert_msg(channel.endpoint->securityPolicy == &dummyPolicy, "SecurityPolicy not set correctly");
 
-    UA_SecureChannel_clear(&channel);
+    UA_SecureChannel_clear(&channel, true);
     ck_assert_msg(fCalled.deleteContext, "Expected deleteContext to have been called");
 
-    teardown_endpoint();
     dummyPolicy.clear(&dummyPolicy);
 }END_TEST
 

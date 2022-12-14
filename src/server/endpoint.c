@@ -7,9 +7,11 @@
 #include "ua_util_internal.h"
 
 UA_StatusCode
-UA_Endpoint_init(
-	UA_Endpoint* endpoint
-) {
+UA_Endpoint_init(UA_Endpoint* endpoint) {
+	if (endpoint == NULL) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+	}
+
 	memset(endpoint, 0, sizeof(UA_Endpoint));
 	return UA_STATUSCODE_GOOD;
 }
@@ -113,6 +115,8 @@ UA_Endpoint_toEndpointDescription(
     endpointDescription->securityLevel = (UA_Byte)securityMode;
     retval = UA_String_copy(&endpoint->endpointUrl, &endpointDescription->endpointUrl);
     UA_CHECK_STATUS(retval, return retval);
+
+    UA_ByteString_clear(&endpointDescription->serverCertificate);
     retval = endpoint->securityPolicy->getLocalCertificate(endpoint->securityPolicy,
                                                            endpoint->pkiStore,
                                                            &endpointDescription->serverCertificate);

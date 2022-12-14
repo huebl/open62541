@@ -114,6 +114,7 @@ UA_ChannelModule_Basic256_New_Context(
 
 static void
 UA_ChannelModule_Basic256_Delete_Context (void * channelContext) {
+
     if (channelContext != NULL) {
         Channel_Context_openssl * cc = (Channel_Context_openssl *)
                                            channelContext;

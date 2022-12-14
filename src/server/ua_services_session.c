@@ -745,8 +745,11 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
                UA_ByteString localCertificate;
                UA_ByteString_init(&localCertificate);
                securityPolicy->getLocalCertificate(securityPolicy, channel->endpoint->pkiStore, &localCertificate);
-               response->responseHeader.serviceResult = securityPolicy->channelModule.
-                   newContext(securityPolicy, channel->endpoint->pkiStore, &localCertificate, &tempChannelContext);
+               printf("SERVER CONNECTION ... \n");
+               response->responseHeader.serviceResult = securityPolicy->channelModule.newContext(
+                   securityPolicy, channel->endpoint->pkiStore,
+				   &localCertificate, &tempChannelContext
+			   );
                UA_LOCK(&server->serviceMutex);
                if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
                    UA_LOG_WARNING_SESSION(&server->config.logger, session,
@@ -808,11 +811,11 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
          * the signature checking code. */
         void *tempChannelContext;
         UA_UNLOCK(&server->serviceMutex);
-        response->responseHeader.serviceResult = securityPolicy->channelModule.
-            newContext(securityPolicy,
-                       channel->endpoint->pkiStore,
-                       &userCertToken->certificateData,
-                       &tempChannelContext);
+        printf("SERVER USER ...\n");
+        response->responseHeader.serviceResult = securityPolicy->channelModule.newContext(
+        	securityPolicy, channel->endpoint->pkiStore,
+            &userCertToken->certificateData, &tempChannelContext
+		);
         UA_LOCK(&server->serviceMutex);
         if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_SESSION(&server->config.logger, session, "ActivateSession: "
@@ -828,6 +831,7 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
                            &session->serverNonce, &request->userTokenSignature);
 
         /* Delete the temporary channel context */
+        printf("SERVER...\n");
         UA_UNLOCK(&server->serviceMutex);
         securityPolicy->channelModule.deleteContext(tempChannelContext);
         UA_LOCK(&server->serviceMutex);

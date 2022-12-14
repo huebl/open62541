@@ -112,6 +112,7 @@ encryptUserIdentityToken(UA_Client *client, const UA_String *userTokenSecurityPo
         return UA_STATUSCODE_GOOD;
     }
 
+    /* Get Security Policy */
     UA_SecurityPolicy *sp = getSecurityPolicy(client, *userTokenSecurityPolicy);
     if(!sp) {
         UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_NETWORK,
@@ -120,10 +121,12 @@ encryptUserIdentityToken(UA_Client *client, const UA_String *userTokenSecurityPo
     }
 
     /* Create a temp channel context */
-
-    void *channelContext;
-    UA_StatusCode retval = sp->channelModule.
-        newContext(sp, client->channel.endpoint->pkiStore, &client->config.endpointDescription.serverCertificate, &channelContext);
+    void *channelContext = NULL;
+    UA_StatusCode retval = sp->channelModule.newContext(
+    	sp, client->channel.endpoint->pkiStore,
+		&client->config.endpointDescription.serverCertificate,
+		&channelContext
+	);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_NETWORK,
                        "Could not instantiate the SecurityPolicy for the UserToken");
@@ -945,6 +948,7 @@ createSessionAsync(UA_Client *client) {
 static UA_StatusCode
 initSecurityPolicy(UA_Client *client) {
 
+	UA_StatusCode retVal = UA_STATUSCODE_GOOD;
     client->channel.securityMode = client->config.endpointDescription.securityMode;
 
     if(client->channel.securityMode == UA_MESSAGESECURITYMODE_INVALID) {
@@ -973,13 +977,6 @@ initSecurityPolicy(UA_Client *client) {
         &client->config.endpointDescription.serverCertificate,
 		&client->channel.remoteCertificate
 	);
-
-    /* Create new Context */
-    UA_StatusCode retVal = sp->channelModule.
-        newContext(sp, pkiStore, &client->channel.remoteCertificate, &client->channel.channelContext);
-    UA_CHECK_STATUS_WARN(retVal, return retVal, sp->logger,
-                         UA_LOGCATEGORY_SECURITYPOLICY,
-                         "Could not set up the SecureChannel context");
 
     UA_ByteString remoteCertificateThumbprint =
         {20, client->channel.remoteCertificateThumbprint};
@@ -1201,7 +1198,6 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
             UA_LOG_ERROR(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                          "Cannot open a connection for SecureChannel that is already used");
             client->connectStatus = UA_STATUSCODE_BADINTERNALERROR;
-            printf("RESUSE CONNECTION\n");
             goto refuse_connection;
         }
 
@@ -1238,16 +1234,8 @@ __Client_networkCallback(UA_ConnectionManager *cm, uintptr_t connectionId,
          * Requests immediately. */
         __Client_AsyncService_removeAll(client, UA_STATUSCODE_BADSECURECHANNELCLOSED);
 
-        /* clean endpoint from secure channel */
-        UA_Endpoint* endpoint = (UA_Endpoint*)(unsigned long)client->channel.endpoint;
-        if (endpoint != NULL) {
-        	UA_Endpoint_clear(endpoint);
-        	UA_free(endpoint);
-        	client->channel.endpoint = NULL;
-        }
-
         /* Clean up the channel and set the status to CLOSED */
-        UA_SecureChannel_clear(&client->channel);
+        UA_SecureChannel_clear(&client->channel, true);
 
         /* The connection closed before it actually opened. Since we are
          * connecting asynchronously, this happens when the server does not

@@ -168,7 +168,7 @@ void UA_SecureChannel_shutdown(UA_SecureChannel *channel);
 
 /* Eventual cleanup after the channel has closed. It is possible to call _init
  * on the channel afterwards to reset it to the fresh status. */
-void UA_SecureChannel_clear(UA_SecureChannel *channel);
+void UA_SecureChannel_clear(UA_SecureChannel *channel, bool deleteEndpoint);
 
 /* Process the remote configuration in the HEL/ACK handshake. The connection
  * config is initialized with the local settings. */

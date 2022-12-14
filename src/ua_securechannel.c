@@ -43,11 +43,10 @@ UA_SecureChannel_setEndpoint(UA_SecureChannel *channel, const UA_Endpoint *endpo
                    "Endpoint and security policy already configured for securechannel");
 
     /* Create the context */
-    UA_StatusCode res =
-        endpoint->securityPolicy->channelModule.newContext(endpoint->securityPolicy,
-                                                           endpoint->pkiStore,
-                                                           &channel->remoteCertificate,
-                                                           &channel->channelContext);
+    UA_StatusCode res = endpoint->securityPolicy->channelModule.newContext(
+        endpoint->securityPolicy, endpoint->pkiStore,
+        &channel->remoteCertificate, &channel->channelContext
+	);
     UA_CHECK_STATUS_WARN(res, return res, endpoint->securityPolicy->logger,
                          UA_LOGCATEGORY_SECURITYPOLICY,
                          "Could not set up the SecureChannel context");
@@ -55,9 +54,11 @@ UA_SecureChannel_setEndpoint(UA_SecureChannel *channel, const UA_Endpoint *endpo
     /* Compute the certificate thumbprint */
     UA_ByteString remoteCertificateThumbprint =
         {20, channel->remoteCertificateThumbprint};
-    res = endpoint->securityPolicy->asymmetricModule.
-        makeCertificateThumbprint(endpoint->securityPolicy, &channel->remoteCertificate,
-                                  &remoteCertificateThumbprint);
+    res = endpoint->securityPolicy->asymmetricModule.makeCertificateThumbprint(
+    	endpoint->securityPolicy,
+		&channel->remoteCertificate,
+        &remoteCertificateThumbprint
+	);
     UA_CHECK_STATUS_WARN(res, return res, endpoint->securityPolicy->logger,
                          UA_LOGCATEGORY_SECURITYPOLICY,
                          "Could not create the certificate thumbprint");
@@ -159,7 +160,10 @@ UA_SecureChannel_shutdown(UA_SecureChannel *channel) {
 }
 
 void
-UA_SecureChannel_clear(UA_SecureChannel *channel) {
+UA_SecureChannel_clear(
+	UA_SecureChannel *channel,
+	bool deleteEndpoint
+) {
     /* Detach Sessions from the SecureChannel. This also removes outstanding
      * Publish requests whose RequestId is valid only for the SecureChannel. */
     UA_SessionHeader *sh, *sh_tmp;
@@ -172,13 +176,20 @@ UA_SecureChannel_clear(UA_SecureChannel *channel) {
         }
     }
 
-
     /* Delete the channel context for the security policy */
     if(channel->endpoint != NULL && channel->endpoint->securityPolicy != NULL) {
         channel->endpoint->securityPolicy->channelModule.deleteContext(channel->channelContext);
         channel->channelContext = NULL;
     }
 
+    /* Delete endpoint */
+    if (deleteEndpoint) {
+    	UA_Endpoint_clear((UA_Endpoint*)(unsigned long)channel->endpoint);
+    	UA_free((UA_Endpoint*)(unsigned long)channel->endpoint);
+    }
+    channel->endpoint = NULL;
+
+    /* Remove endpoint candidates */
     if(channel->endpointCandidates != NULL) {
         UA_free(channel->endpointCandidates);
         channel->endpointCandidates = NULL;
