@@ -420,9 +420,9 @@ START_TEST(encryption_connect_reject_cert) {
         UA_ByteString_clear(&trustList[deleteCount]);
     }
 
+#if 0
     /* Secure client connect */
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
-#if 0
     printf(">>>> %x\n", retval);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADSECURITYCHECKSFAILED);
 

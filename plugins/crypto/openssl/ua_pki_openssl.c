@@ -597,8 +597,8 @@ static inline int add_subject_attributes(const UA_String* subject, X509_NAME* na
     if (subj == NULL) {
     	return 0;
     }
+    memset(subj, 0x00, subject->length + 1);
     strncpy(subj, (char *)subject->data, subject->length);
-    strcat(subj, "\0");
 
     /* split string into tokens */
     char* token = strtok(subj, "/,");
@@ -789,6 +789,7 @@ static UA_StatusCode certificateManager_createCSR(
 	if (!X509_REQ_set_pubkey(request, pubkey)) {
 		X509_free(x509Certificate);
 		EVP_PKEY_free(pubkey);
+		EVP_PKEY_free(privateKey);
 	    X509_REQ_free(request);
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
@@ -797,6 +798,7 @@ static UA_StatusCode certificateManager_createCSR(
 
 	/* Sign the CSR */
 	if (!X509_REQ_sign(request, privateKey, EVP_sha256())) {
+		EVP_PKEY_free(privateKey);
 	    X509_REQ_free(request);
 	    return UA_STATUSCODE_BADINTERNALERROR;
 	}
@@ -804,6 +806,8 @@ static UA_StatusCode certificateManager_createCSR(
 	/* Determine necessary length for CSR buffer */
 	int csrBufferLength = i2d_X509_REQ(request, 0);
 	if (csrBufferLength < 0) {
+	    X509_REQ_free(request);
+	    EVP_PKEY_free(privateKey);
 	    X509_REQ_free(request);
 		return UA_STATUSCODE_BADINTERNALERROR;
 	}
@@ -819,6 +823,8 @@ static UA_StatusCode certificateManager_createCSR(
 
 	*csr = csrByteString;
 
+	X509_REQ_free(request);
+	EVP_PKEY_free(privateKey);
 	return UA_STATUSCODE_GOOD;
 }
 

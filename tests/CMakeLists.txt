@@ -431,16 +431,13 @@ if(UA_ENABLE_ENCRYPTION_MBEDTLS)
     ua_add_test(encryption/check_encryption_aes128sha256rsaoaep.c)
 endif()
 
-if(UA_ENABLE_ENCRYPTION_MBEDTLS AND UA_ENABLE_CERT_REJECTED_DIR)
-    ua_add_test(encryption/check_save_rejected_cert.c)
-endif()
-
 if(UA_ENABLE_ENCRYPTION_OPENSSL OR UA_ENABLE_ENCRYPTION_LIBRESSL)
     ua_add_test(encryption/check_encryption_basic128rsa15.c)
     ua_add_test(encryption/check_encryption_basic256.c)
     ua_add_test(encryption/check_encryption_basic256sha256.c)
     ua_add_test(encryption/check_encryption_aes128sha256rsaoaep.c)
     ua_add_test(encryption/check_cert_generation.c)
+    ua_add_test(encryption/check_save_rejected_cert.c)
 endif()
 
 # Tests for Nodeset Compiler
