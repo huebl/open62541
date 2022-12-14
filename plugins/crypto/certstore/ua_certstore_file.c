@@ -446,6 +446,7 @@ appendRejectedList(UA_PKIStore *certStore, const UA_ByteString *certificate)
 	size_t idx = 0;
 	for (idx = 0; idx < rejectedListLen; idx++) {
 		if (UA_ByteString_equal(&rejectedList[idx], certificate)) {
+			UA_Array_delete(rejectedList, rejectedListLen, &UA_TYPES[UA_TYPES_BYTESTRING]);
 			return UA_STATUSCODE_GOOD; /* certificate already exist */
 		}
 	}

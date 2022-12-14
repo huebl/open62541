@@ -487,6 +487,8 @@ START_TEST(Server_create_csr) {
 	);
 	ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 	UA_ByteString_clear(csr);
+	UA_free(csr);
+	UA_String_clear(&subject);
 	csr = NULL;
 
 	/* Clear data hold in the certificate manager */

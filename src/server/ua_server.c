@@ -1050,13 +1050,16 @@ UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat) {
     /* Add new key format */
     if((retval = UA_Array_resize(&keyFormats.data, &keyFormats.arrayLength, keyFormats.arrayLength + 1,
                                  &UA_TYPES[UA_TYPES_STRING]))) {
+    	UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
         return retval;
     }
     if((retval = UA_String_copy(newKeyFormat, ((UA_String *)keyFormats.data) + keyFormats.arrayLength - 1))) {
+    	UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
         return retval;
     }
     retval = UA_Server_writeValue(server,
              UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS), keyFormats);
+    UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
     return retval;
 }
 
