@@ -50,9 +50,15 @@ UA_Policy_Aes128Sha256RsaOaep_New_Context(
 /* clear the policy context */
 static void
 UA_Policy_Aes128Sha256RsaOaep_Clear_Context(UA_SecurityPolicy *policy) {
-    if(policy == NULL)
+    if(policy == NULL) {
         return;
+    }
 
+    Policy_Context_openssl *context = (Policy_Context_openssl*)policy->policyContext;
+    if(context != NULL) {
+        UA_free(context);
+
+    }
     return;
 }
 

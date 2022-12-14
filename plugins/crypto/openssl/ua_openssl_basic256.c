@@ -41,10 +41,15 @@ UA_Policy_Basic256_New_Context (
 
 static void
 UA_Policy_Basic256_Clear_Context (UA_SecurityPolicy *policy) {
-    if (policy == NULL) {
+    if(policy == NULL) {
         return;
     }
 
+    Policy_Context_openssl *context = (Policy_Context_openssl*)policy->policyContext;
+    if(context != NULL) {
+        UA_free(context);
+
+    }
     return;
 }
 

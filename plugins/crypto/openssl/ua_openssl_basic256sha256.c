@@ -52,6 +52,12 @@ UA_Policy_Clear_Context(UA_SecurityPolicy *policy) {
     if(policy == NULL) {
         return;
     }
+
+    Policy_Context_openssl *context = (Policy_Context_openssl*)policy->policyContext;
+    if(context != NULL) {
+        UA_free(context);
+
+    }
     return;
 }
 
