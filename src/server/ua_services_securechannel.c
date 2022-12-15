@@ -21,8 +21,6 @@ void
 deleteServerSecureChannel(UA_Server *server, UA_SecureChannel *channel) {
     UA_LOG_INFO_CHANNEL(&server->config.logger, channel, "SecureChannel closed");
 
-    printf("SERVER DELETE SECURE CHANNEL \n");
-
     /* Clean up the SecureChannel. This is the only place where
      * UA_SecureChannel_clear must be called within the server code-base. */
     UA_SecureChannel_clear(channel, false);
@@ -243,7 +241,6 @@ configServerSecureChannel(void *application, UA_SecureChannel *channel,
 
     /* Create the channel context and parse the sender (remote) certificate used
      * for the secureChannel. */
-    printf("SERVER... \n");
     retval = UA_SecureChannel_setEndpoint(channel, endpoint);
     if(retval != UA_STATUSCODE_GOOD) {
         return retval;

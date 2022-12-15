@@ -383,7 +383,7 @@ UA_mbedTLS_LoadLocalCertificate(
         tmp.data = cert.raw.p;
         tmp.length = cert.raw.len;
         if(target != NULL) {
-            result = UA_ByteString_copy(&tmp, target);
+        	result = UA_ByteString_copy(&tmp, target);
         }
     } else {
         if(target != NULL) {

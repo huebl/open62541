@@ -212,8 +212,10 @@ checkCreateSessionSignature(UA_Client *client, const UA_SecureChannel *channel,
     size_t dataToVerifySize = localCertificate.length + client->localNonce.length;
     UA_ByteString dataToVerify = UA_BYTESTRING_NULL;
     UA_StatusCode retval = UA_ByteString_allocBuffer(&dataToVerify, dataToVerifySize);
-    if(retval != UA_STATUSCODE_GOOD)
+    if(retval != UA_STATUSCODE_GOOD) {
+    	UA_ByteString_clear(&localCertificate);
         return retval;
+    }
 
     memcpy(dataToVerify.data, localCertificate.data, localCertificate.length);
     memcpy(dataToVerify.data + localCertificate.length,
@@ -936,6 +938,8 @@ createSessionAsync(UA_Client *client) {
                                   &UA_TYPES[UA_TYPES_CREATESESSIONRESPONSE], NULL, NULL,
                                   client->config.timeout);
 
+    UA_ByteString_clear(&request.clientCertificate);
+
     if(res == UA_STATUSCODE_GOOD)
         client->sessionState = UA_SESSIONSTATE_CREATE_REQUESTED;
     else
@@ -1148,7 +1152,7 @@ verifyClientApplicationURI(UA_Client *client) {
             &localCertificate
 	    );
       
-        if(!localCertificate.data) {
+        if(localCertificate.length == 0) {
                 UA_LOG_WARNING(&client->config.logger, UA_LOGCATEGORY_CLIENT,
                 "skip verifying ApplicationURI for the SecurityPolicy %.*s",
                 (int)sp->policyUri.length, sp->policyUri.data);

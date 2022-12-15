@@ -93,13 +93,11 @@ newContext_none(const UA_SecurityPolicy *securityPolicy,
                 UA_PKIStore *pkiStore,
                 const UA_ByteString *remoteCertificate,
                 void **channelContext) {
-	printf("Create Context NONE %p\n", (void*)channelContext);
     return UA_STATUSCODE_GOOD;
 }
 
 static void
 deleteContext_none(void *channelContext) {
-	printf("Delete Context NONE %p\n", (void*)channelContext);
 }
 
 static UA_StatusCode

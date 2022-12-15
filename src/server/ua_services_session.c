@@ -403,10 +403,11 @@ Service_CreateSession(UA_Server *server, UA_SecureChannel *channel,
 
     UA_ByteString_init(&response->serverCertificate);
 
-    response->responseHeader.serviceResult =
-        channel->endpoint->securityPolicy->getLocalCertificate(channel->endpoint->securityPolicy,
-                                                               channel->endpoint->pkiStore,
-                                                               &response->serverCertificate);
+    response->responseHeader.serviceResult = channel->endpoint->securityPolicy->getLocalCertificate(
+    	channel->endpoint->securityPolicy,
+        channel->endpoint->pkiStore,
+        &response->serverCertificate
+	);
     if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
     	UA_Server_removeSessionByToken(server, &newSession->header.authenticationToken,
     	                                   UA_DIAGNOSTICEVENT_REJECT);
@@ -455,15 +456,20 @@ checkSignature(const UA_Server *server, const UA_Endpoint *endpoint,
     const UA_SecurityPolicy *const securityPolicy = endpoint->securityPolicy;
     UA_PKIStore *const pkiStore = endpoint->pkiStore;
     UA_ByteString localCertificate;
-    UA_StatusCode retval = securityPolicy->getLocalCertificate(securityPolicy, pkiStore, &localCertificate);
+    UA_ByteString_init(&localCertificate);
+    UA_StatusCode retval = securityPolicy->getLocalCertificate(
+    	securityPolicy, pkiStore, &localCertificate
+	);
     if(!UA_StatusCode_isGood(retval))
         return retval;
     /* Data to verify is calculated by appending the serverNonce to the local certificate */
     UA_ByteString dataToVerify;
     size_t dataToVerifySize = localCertificate.length + serverNonce->length;
     retval = UA_ByteString_allocBuffer(&dataToVerify, dataToVerifySize);
-    if(retval != UA_STATUSCODE_GOOD)
+    if(retval != UA_STATUSCODE_GOOD) {
+    	UA_ByteString_clear(&localCertificate);
         return retval;
+    }
 
     memcpy(dataToVerify.data, localCertificate.data, localCertificate.length);
     memcpy(dataToVerify.data + localCertificate.length,
@@ -744,12 +750,14 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
                UA_UNLOCK(&server->serviceMutex);
                UA_ByteString localCertificate;
                UA_ByteString_init(&localCertificate);
-               securityPolicy->getLocalCertificate(securityPolicy, channel->endpoint->pkiStore, &localCertificate);
-               printf("SERVER CONNECTION ... \n");
+               securityPolicy->getLocalCertificate(
+                   securityPolicy, channel->endpoint->pkiStore, &localCertificate
+               );
                response->responseHeader.serviceResult = securityPolicy->channelModule.newContext(
                    securityPolicy, channel->endpoint->pkiStore,
 				   &localCertificate, &tempChannelContext
 			   );
+               UA_ByteString_clear(&localCertificate);
                UA_LOCK(&server->serviceMutex);
                if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
                    UA_LOG_WARNING_SESSION(&server->config.logger, session,
@@ -831,7 +839,6 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
                            &session->serverNonce, &request->userTokenSignature);
 
         /* Delete the temporary channel context */
-        printf("SERVER...\n");
         UA_UNLOCK(&server->serviceMutex);
         securityPolicy->channelModule.deleteContext(tempChannelContext);
         UA_LOCK(&server->serviceMutex);
