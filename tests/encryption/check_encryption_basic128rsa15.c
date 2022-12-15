@@ -140,6 +140,7 @@ START_TEST(encryption_connect) {
     UA_ClientConfig *cc = UA_Client_getConfig(client);
     UA_ClientConfig_setDefaultEncryption(cc);
 
+    UA_ByteString_clear(&cc->clientDescription.applicationUri);
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;
@@ -201,6 +202,7 @@ START_TEST(encryption_connect_pem) {
     UA_ClientConfig *cc = UA_Client_getConfig(client);
     UA_ClientConfig_setDefaultEncryption(cc);
 
+    UA_ByteString_clear(&cc->clientDescription.applicationUri);
     cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     cc->securityPolicyUri = UA_STRING_ALLOC("http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15");
     cc->securityMode = UA_MESSAGESECURITYMODE_SIGNANDENCRYPT;

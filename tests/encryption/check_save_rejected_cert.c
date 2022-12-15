@@ -408,8 +408,9 @@ START_TEST(encryption_connect_reject_cert) {
     /* Secure client initialization */
     client = UA_Client_new();
     UA_ClientConfig *cc = UA_Client_getConfig(client);
-    cc->clientDescription.applicationUri =
-        UA_STRING_ALLOC("urn:open62541.server.application");
+
+    UA_ByteString_clear(&cc->clientDescription.applicationUri);
+    cc->clientDescription.applicationUri = UA_STRING_ALLOC("urn:open62541.server.application");
     UA_ClientConfig_setDefaultEncryption(cc);
 
     cc->securityPolicyUri =

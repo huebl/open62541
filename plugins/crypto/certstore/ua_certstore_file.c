@@ -507,7 +507,7 @@ getCertTypeFileName(
 	    UA_String nodeIdStr;
 	    UA_String_init(&nodeIdStr);
 	    UA_NodeId_print(&certType, &nodeIdStr);
-	    if (!snprintf(filenameBuf, filenameLen, "%s/%s", directory, nodeIdStr.data)) {
+	    if (!snprintf(filenameBuf, filenameLen, "%s/%.*s", directory, (int)nodeIdStr.length, nodeIdStr.data)) {
 	    	UA_String_clear(&nodeIdStr);
 	    	return UA_STATUSCODE_BADINTERNALERROR;
 	    }

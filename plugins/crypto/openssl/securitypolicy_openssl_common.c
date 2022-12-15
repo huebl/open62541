@@ -985,10 +985,13 @@ UA_OpenSSL_LoadLocalCertificate(const UA_SecurityPolicy *policy, UA_PKIStore *pk
 	    temp.data = derData;
 	    UA_ByteString_copy(&temp, target);
 	    OPENSSL_free(derData);
+	    UA_ByteString_clear(&localCertificate);
 	    return UA_STATUSCODE_GOOD;
 	} else {
 	    UA_ByteString_init(target);
 	}
+
+	UA_ByteString_clear(&localCertificate);
 	return UA_STATUSCODE_BADINVALIDARGUMENT;
 }
 

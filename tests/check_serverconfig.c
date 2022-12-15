@@ -28,11 +28,15 @@ START_TEST(Server_add_configuration_capabilities) {
 
 	UA_Variant capabilities;
     UA_Variant_init(&capabilities);
-    retval = UA_Server_readValue(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES),
-                                 &capabilities);
+    retval = UA_Server_readValue(
+    	server,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES),
+        &capabilities
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(capabilities.type == &UA_TYPES[UA_TYPES_STRING]);
     size_t sizeBeforeAdd = capabilities.arrayLength;  /* inital array length before adding */
+    UA_Variant_clear(&capabilities);
 
     /* Try to add an capability by null pointer */
     retval = UA_Server_configAddCapability(server, NULL);
@@ -72,8 +76,11 @@ START_TEST(Server_add_configuration_capabilities) {
 
     /* Read configuration capability variable after adding */
     UA_Variant_init(&capabilities);
-    retval = UA_Server_readValue(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES),
-                                 &capabilities);
+    retval = UA_Server_readValue(
+    	server,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SERVERCAPABILITIES),
+        &capabilities
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(capabilities.type == &UA_TYPES[UA_TYPES_STRING]);
     size_t sizeAfterAdd = capabilities.arrayLength;  /* array length after adding */
@@ -107,11 +114,15 @@ START_TEST(Server_add_configuration_keyformats) {
 
     UA_Variant keyFormats;
     UA_Variant_init(&keyFormats);
-    retval = UA_Server_readValue(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS),
-                                 &keyFormats);
+    retval = UA_Server_readValue(
+    	server,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS),
+        &keyFormats
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(keyFormats.type == &UA_TYPES[UA_TYPES_STRING]);
     size_t anzBeforeAdd = keyFormats.arrayLength;  /* inital array length before adding */
+    UA_Variant_clear(&keyFormats);
 
     /* Try to add an key format by a null pointer */
     retval = UA_Server_configAddKeyFormat(server, NULL);
@@ -152,8 +163,11 @@ START_TEST(Server_add_configuration_keyformats) {
 
     /* Read configuration key format variable after adding */
     UA_Variant_init(&keyFormats);
-    retval = UA_Server_readValue(server, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS),
-                                 &keyFormats);
+    retval = UA_Server_readValue(
+    	server,
+		UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS),
+        &keyFormats
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
     ck_assert(keyFormats.type == &UA_TYPES[UA_TYPES_STRING]);
     size_t anzAfterAdd = keyFormats.arrayLength;  /* array length after adding */
@@ -194,8 +208,11 @@ START_TEST(Server_set_max_trust_list_size) {
     /* Read max trust list size variable after adding */
     UA_Variant sizeVar;
     UA_Variant_init(&sizeVar);
-    retval = UA_Server_readValue(server,
-                 UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_MAXTRUSTLISTSIZE), &sizeVar);
+    retval = UA_Server_readValue(
+    	server,
+        UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_MAXTRUSTLISTSIZE),
+		&sizeVar
+	);
     ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
 
     /* Check for right type */
