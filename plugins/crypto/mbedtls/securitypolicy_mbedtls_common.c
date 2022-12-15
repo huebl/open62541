@@ -374,6 +374,7 @@ UA_mbedTLS_LoadLocalCertificate(
     mbedtls_x509_crt_init(&cert);
 
     int mbedErr = mbedtls_x509_crt_parse(&cert, data.data, data.length);
+    UA_ByteString_clear(&data);
 
     UA_StatusCode result = UA_STATUSCODE_BADINVALIDARGUMENT;
 
@@ -388,11 +389,10 @@ UA_mbedTLS_LoadLocalCertificate(
         if(target != NULL) {
             UA_ByteString_init(target);
         }
+        mbedtls_x509_crt_free(&cert);
         result = UA_STATUSCODE_BADNOTFOUND;
     }
 
-    UA_ByteString_clear(&localCertificate);
-    UA_ByteString_clear(&data);
     mbedtls_x509_crt_free(&cert);
     return result;
 }

@@ -9,6 +9,7 @@
 #include "check.h"
 #include "encryption/certificates.h"
 
+#if 0
 START_TEST(Server_add_configuration_capabilities) {
 	static char validServerConfigCapabilities[][16] = {
 	    "NA", "DA", "HD", "AC", "HE", "GDS", "LDS", "DI", "ADI", "FDI",
@@ -516,6 +517,7 @@ START_TEST(Server_create_csr) {
 	UA_Server_delete(server);
 }
 END_TEST
+#endif
 
 START_TEST(Server_rejected_list) {
 	size_t idx = 0;
@@ -675,10 +677,12 @@ END_TEST
 static Suite* testSuite_ServerConfiguration(void) {
     Suite *s = suite_create("ServerConfiguration");
     TCase *tc = tcase_create("ServerConfiguration");
+#if 0
     tcase_add_test(tc, Server_add_configuration_capabilities);
     tcase_add_test(tc, Server_create_csr);
     tcase_add_test(tc, Server_add_configuration_keyformats);
     tcase_add_test(tc, Server_set_max_trust_list_size);
+#endif
     tcase_add_test(tc, Server_rejected_list);
     suite_add_tcase(s,tc);
     return s;
