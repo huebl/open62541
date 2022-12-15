@@ -977,6 +977,7 @@ UA_Server_configAddCapability(UA_Server *server, const UA_String *newCapability)
 	UA_String *capa = (UA_String *)capabilities.data;
 	for (i = 0; i < capabilities.arrayLength; i++) {
 		if (UA_String_equal(capa + i, newCapability)) {
+			UA_Variant_clear(&capabilities);
 			return UA_STATUSCODE_GOOD;  /* already set, nothing to do, no error */
 		}
 	}
@@ -985,11 +986,13 @@ UA_Server_configAddCapability(UA_Server *server, const UA_String *newCapability)
 	retval = UA_Array_resize(&capabilities.data, &capabilities.arrayLength, capabilities.arrayLength + 1,
 	                         &UA_TYPES[UA_TYPES_STRING]);
 	if (retval != UA_STATUSCODE_GOOD) {
+		UA_Variant_clear(&capabilities);
 		return retval;
 	}
 
 	retval = UA_String_copy(newCapability, ((UA_String *)capabilities.data) + capabilities.arrayLength - 1);
 	if (retval != UA_STATUSCODE_GOOD) {
+		UA_Variant_clear(&capabilities);
 		return retval;
 	}
 
@@ -1043,6 +1046,7 @@ UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat) {
     UA_String *keyformat = (UA_String *)keyFormats.data;
     for (i = 0; i < keyFormats.arrayLength; i++) {
         if (UA_String_equal(keyformat + i, newKeyFormat)) {
+        	UA_Variant_clear(&keyFormats);
             return UA_STATUSCODE_GOOD;  /* already set, nothing to do, no error */
         }
     }
@@ -1050,16 +1054,16 @@ UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat) {
     /* Add new key format */
     if((retval = UA_Array_resize(&keyFormats.data, &keyFormats.arrayLength, keyFormats.arrayLength + 1,
                                  &UA_TYPES[UA_TYPES_STRING]))) {
-    	UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
+    	UA_Variant_clear(&keyFormats);
         return retval;
     }
     if((retval = UA_String_copy(newKeyFormat, ((UA_String *)keyFormats.data) + keyFormats.arrayLength - 1))) {
-    	UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
+    	UA_Variant_clear(&keyFormats);
         return retval;
     }
     retval = UA_Server_writeValue(server,
              UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS), keyFormats);
-    /* UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]); */
+
     UA_Variant_clear(&keyFormats);
     return retval;
 }

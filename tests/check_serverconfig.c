@@ -9,8 +9,9 @@
 #include "check.h"
 #include "encryption/certificates.h"
 
-#if 0
 START_TEST(Server_add_configuration_capabilities) {
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
 	static char validServerConfigCapabilities[][16] = {
 	    "NA", "DA", "HD", "AC", "HE", "GDS", "LDS", "DI", "ADI", "FDI",
 	    "FDIC", "PLC", "S95", "RCP", "PUB", "AUTOID", "MDIS", "CNC", "PLK", "FDT",
@@ -23,9 +24,6 @@ START_TEST(Server_add_configuration_capabilities) {
 
 	UA_Server *server = UA_Server_new();
 	UA_ServerConfig_setDefault(UA_Server_getConfig(server));
-
-	UA_StatusCode retval;
-	UA_StatusCode_init(&retval);
 
 	UA_Variant capabilities;
     UA_Variant_init(&capabilities);
@@ -47,6 +45,7 @@ START_TEST(Server_add_configuration_capabilities) {
     UA_String strEmpty = UA_String_fromChars("");
     retval = UA_Server_configAddCapability(server, &strEmpty);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADINVALIDARGUMENT);
+    UA_String_clear(&strEmpty);
 
     /* Try to add a valid capability but server pointer is null */
     UA_String str = UA_String_fromChars(validServerConfigCapabilities[0]);
@@ -96,8 +95,9 @@ START_TEST(Server_add_configuration_capabilities) {
         ck_assert_int_eq(strncmp((const char *)(s->data), validServerConfigCapabilities[i], s->length), 0);
     }
 
-    UA_String_clear(&strEmpty);
     UA_Variant_clear(&capabilities);
+
+    UA_Server_run_shutdown(server);
     UA_Server_delete(server);
 }
 END_TEST
@@ -225,7 +225,6 @@ START_TEST(Server_set_max_trust_list_size) {
     UA_Server_delete(server);
 }
 END_TEST
-#endif
 
 UA_Byte CERT_DER_DATA_1[] = {
     0x31, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x64,
@@ -425,7 +424,6 @@ UA_Byte CERT_DER_DATA_3[] = {
 };
 #define CERT_DER_LENGTH_3 sizeof(CERT_DER_DATA_3)
 
-#if 0
 START_TEST(Server_create_csr) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
@@ -519,7 +517,6 @@ START_TEST(Server_create_csr) {
 	UA_Server_delete(server);
 }
 END_TEST
-#endif
 
 START_TEST(Server_rejected_list) {
 	size_t idx = 0;
@@ -679,12 +676,10 @@ END_TEST
 static Suite* testSuite_ServerConfiguration(void) {
     Suite *s = suite_create("ServerConfiguration");
     TCase *tc = tcase_create("ServerConfiguration");
-#if 0
     tcase_add_test(tc, Server_add_configuration_capabilities);
     tcase_add_test(tc, Server_create_csr);
     tcase_add_test(tc, Server_add_configuration_keyformats);
     tcase_add_test(tc, Server_set_max_trust_list_size);
-#endif
     tcase_add_test(tc, Server_rejected_list);
     suite_add_tcase(s,tc);
     return s;

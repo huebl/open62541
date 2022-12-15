@@ -597,6 +597,7 @@ static UA_StatusCode CertificateManager_createCSR(
     }
 
 	/* Set the subject in CSR context */
+#if 0 /* FIXME: HUK */
 	ret = mbedtls_x509write_csr_set_subject_name(&request, subj);
 	if(ret != 0) {
 	    if (ret != 0) {
@@ -608,6 +609,7 @@ static UA_StatusCode CertificateManager_createCSR(
 	        return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
+#endif
 
 	/* Get the subject alternate names from certificate and set them in CSR context*/
 	san_mbedtls_san_list_entry_t* san_list = NULL;
