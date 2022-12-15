@@ -556,7 +556,9 @@ static UA_StatusCode CertificateManager_createCSR(
 	/* Get subject from argument or read it from certificate */
 	char *subj = NULL;
 	if (subject != NULL && subject->length > 0) {
-	    /* subject from argument */
+
+		/* subject from argument */
+
 	    subj = (char *)UA_malloc(subject->length + 1);
 	    if (subj == NULL) {
 	    	mbedtls_x509_crt_free(&x509Cert);
@@ -565,8 +567,8 @@ static UA_StatusCode CertificateManager_createCSR(
 	        mbedtls_entropy_free(&entropy_ctx);
 	        return UA_STATUSCODE_BADOUTOFMEMORY;
 	    }
+	    memset(subj, 0x00, subject->length + 1);
 	    strncpy(subj, (char *)subject->data, subject->length);
-	    strcat(subj, "\0");
 	    /* search for / in subject and replace it by comma */
 	    char *p = subj;
 	    for (size_t i = 0; i < subject->length; i++) {
@@ -577,8 +579,10 @@ static UA_StatusCode CertificateManager_createCSR(
 	    }
 	}
     else {
+
 	    /* read subject from certificate */
     	const size_t subjectMaxSize = 512;
+
     	mbedtls_x509_name s = x509Cert.subject;
         subj = (char *)UA_malloc(subjectMaxSize);
         if (subj == NULL) {
@@ -597,7 +601,6 @@ static UA_StatusCode CertificateManager_createCSR(
     }
 
 	/* Set the subject in CSR context */
-#if 0 /* FIXME: HUK */
 	ret = mbedtls_x509write_csr_set_subject_name(&request, subj);
 	if(ret != 0) {
 	    if (ret != 0) {
@@ -609,7 +612,6 @@ static UA_StatusCode CertificateManager_createCSR(
 	        return UA_STATUSCODE_BADINTERNALERROR;
 	    }
 	}
-#endif
 
 	/* Get the subject alternate names from certificate and set them in CSR context*/
 	san_mbedtls_san_list_entry_t* san_list = NULL;
