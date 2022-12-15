@@ -65,6 +65,7 @@ START_TEST(Server_add_configuration_capabilities) {
         UA_String_init(&str);
         str = UA_String_fromChars(validServerConfigCapabilities[i]);
         retval = UA_Server_configAddCapability(server, &str);
+        ck_assert_uint_eq(retval, UA_STATUSCODE_GOOD);
         UA_String_clear(&str);
     }
 
