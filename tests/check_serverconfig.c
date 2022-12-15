@@ -225,6 +225,7 @@ START_TEST(Server_set_max_trust_list_size) {
     UA_Server_delete(server);
 }
 END_TEST
+#endif
 
 UA_Byte CERT_DER_DATA_1[] = {
     0x31, 0x82, 0x03, 0xda, 0x30, 0x82, 0x02, 0xc2, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x14, 0x64,
@@ -424,6 +425,7 @@ UA_Byte CERT_DER_DATA_3[] = {
 };
 #define CERT_DER_LENGTH_3 sizeof(CERT_DER_DATA_3)
 
+#if 0
 START_TEST(Server_create_csr) {
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
