@@ -480,7 +480,7 @@ START_TEST(encryption_connect_reject_cert) {
     	UA_ClientConfig_PKIStore_getDefault(client), &rejectedList, &rejectedListSize
     );
     ck_assert_uint_eq(rejectedListSize, 1);
-    UA_Array_delete(&rejectedList, rejectedListSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
+    UA_Array_delete(rejectedList, rejectedListSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
 
     UA_Client_disconnect(client);
     UA_Client_delete(client);
