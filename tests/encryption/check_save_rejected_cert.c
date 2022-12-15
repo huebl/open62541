@@ -349,6 +349,16 @@ UA_Byte clientCertificateDer[] = {
 static void setup(void) {
     running = true;
 
+    /* Load certificate and private key */
+    UA_ByteString certificate;
+    certificate.length = server_cert_der_len;
+    certificate.data = server_cert_der;
+
+    UA_ByteString privateKey;
+    privateKey.length = server_key_der_len;
+    privateKey.data = server_key_der;
+
+
     server = UA_Server_new();
     UA_ServerConfig *config = UA_Server_getConfig(server);
     UA_StatusCode res = UA_ServerConfig_setDefaultWithSecurityPolicies(config, 4840, NULL);
@@ -358,6 +368,36 @@ static void setup(void) {
     UA_String_clear(&config->applicationDescription.applicationUri);
     config->applicationDescription.applicationUri =
         UA_STRING_ALLOC("urn:open62541.server.application");
+
+  	UA_ServerConfig_PKIStore_removeContentAll(UA_ServerConfig_PKIStore_getDefault(server));
+  	UA_ServerConfig_PKIStore_storeCertificate(
+  		UA_ServerConfig_PKIStore_getDefault(server),
+  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+  		&certificate
+  	);
+  	UA_ServerConfig_PKIStore_storeCertificate(
+  		UA_ServerConfig_PKIStore_getDefault(server),
+  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+  		&certificate
+  	);
+  	UA_ServerConfig_PKIStore_storePrivateKey(
+  		UA_ServerConfig_PKIStore_getDefault(server),
+  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSAMINAPPLICATIONCERTIFICATETYPE),
+  		&privateKey
+  	);
+  	UA_ServerConfig_PKIStore_storePrivateKey(
+  		UA_ServerConfig_PKIStore_getDefault(server),
+  		UA_NODEID_NUMERIC(0, UA_NS0ID_RSASHA256APPLICATIONCERTIFICATETYPE),
+  		&privateKey
+  	);
+
+  	UA_ServerConfig_PKIStore_storeTrustList(
+  		UA_ServerConfig_PKIStore_getDefault(server),
+  		0, NULL,
+  		0, NULL,
+  		0, NULL,
+  		0, NULL
+  	);
 
     UA_Server_run_startup(server);
     THREAD_CREATE(server_thread, serverloop);
@@ -421,28 +461,26 @@ START_TEST(encryption_connect_reject_cert) {
         UA_ByteString_clear(&trustList[deleteCount]);
     }
 
-#if 0
-    /* Secure client connect */
+    /* Check number of rejected certificates rejected list */
+    UA_ByteString *rejectedList = NULL;
+ 	size_t rejectedListSize = 0;
+    UA_ClientConfig_PKIStore_loadRejectCertificates(
+    	UA_ClientConfig_PKIStore_getDefault(client), &rejectedList, &rejectedListSize
+    );
+    ck_assert_uint_eq(rejectedListSize, 0);
+
+    /* Secure client connect - certificate is not trusted on server*/
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
-    printf(">>>> %x\n", retval);
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADSECURITYCHECKSFAILED);
 
-    char rejectedFileName [256] = {0};
-    strcat(rejectedFileName, "./");
-    strcat(rejectedFileName, (char *)clientCertificateThumbprint);
-    strcat(rejectedFileName, ".der");
-    FILE * fp_rejectedFile = fopen(rejectedFileName, "rb");
-
-    if (fp_rejectedFile) {
-        UA_Byte readBuffer[CLIENT_CERTIFICATE_DER_SIZE] = {0};
-        fread(readBuffer, CLIENT_CERTIFICATE_DER_SIZE, 1, fp_rejectedFile);
-
-        for(size_t i=0; i<CLIENT_CERTIFICATE_DER_SIZE; i++) {
-           ck_assert(readBuffer[i] == clientCertificateDer[i]);
-        }
-        fclose(fp_rejectedFile);
-    }
-#endif
+    /* Check number of rejected certificates rejected list */
+    rejectedList = NULL;
+ 	rejectedListSize = 0;
+    UA_ClientConfig_PKIStore_loadRejectCertificates(
+    	UA_ClientConfig_PKIStore_getDefault(client), &rejectedList, &rejectedListSize
+    );
+    ck_assert_uint_eq(rejectedListSize, 1);
+    UA_Array_delete(&rejectedList, rejectedListSize, &UA_TYPES[UA_TYPES_BYTESTRING]);
 
     UA_Client_disconnect(client);
     UA_Client_delete(client);

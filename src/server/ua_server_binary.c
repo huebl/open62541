@@ -334,8 +334,6 @@ processHEL(UA_Server *server, UA_SecureChannel *channel, const UA_ByteString *ms
     if(retval != UA_STATUSCODE_GOOD)
         return retval;
 
-    /* FIXME: HUK rework */
-
     /* The channel is new. Therefore, no endpoints can exist. */
     if(channel->endpointCandidatesSize > 0 || channel->endpointCandidates != NULL) {
         return UA_STATUSCODE_BADINVALIDSTATE;

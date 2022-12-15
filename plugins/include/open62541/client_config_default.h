@@ -47,6 +47,11 @@ UA_ClientConfig_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
                                  const UA_ByteString *certificate);
 
 UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_loadRejectCertificates(UA_PKIStore *pkiStore,
+		                         UA_ByteString **rejectedList,
+		                         size_t *rejectedListSize);
+
+UA_EXPORT UA_StatusCode
 UA_ClientConfig_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *cert);

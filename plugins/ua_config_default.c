@@ -1002,6 +1002,46 @@ UA_ClientConfig_PKIStore_appendRejectCertificate(UA_PKIStore *pkiStore,
 }
 
 static UA_StatusCode
+UA_Config_PKIStore_loadRejectCertificates(
+	UA_PKIStore *pkiStore,
+	UA_ByteString **rejectedList,
+	size_t *rejectedListSize
+)
+{
+	/* Check parameter */
+	if (pkiStore == NULL || rejectedList == NULL || rejectedListSize == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
+	/* Add rejected certificate to list data */
+	return pkiStore->loadRejectedList(pkiStore, rejectedList, rejectedListSize);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ServerConfig_PKIStore_loadRejectCertificates(
+		UA_PKIStore *pkiStore,
+		UA_ByteString **rejectedList,
+		size_t *rejectedListSize
+)
+{
+	return UA_Config_PKIStore_loadRejectCertificates(
+		pkiStore, rejectedList,rejectedListSize
+	);
+}
+
+UA_EXPORT UA_StatusCode
+UA_ClientConfig_PKIStore_loadRejectCertificates(
+		UA_PKIStore *pkiStore,
+		UA_ByteString **rejectedList,
+		size_t *rejectedListSize
+)
+{
+	return UA_Config_PKIStore_loadRejectCertificates(
+		pkiStore, rejectedList,rejectedListSize
+	);
+}
+
+static UA_StatusCode
 UA_Config_PKIStore_storeCertificate(UA_PKIStore *pkiStore,
 		                         const UA_NodeId certType,
 								 const UA_ByteString *cert)
