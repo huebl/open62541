@@ -391,6 +391,7 @@ UA_mbedTLS_LoadLocalCertificate(
         result = UA_STATUSCODE_BADNOTFOUND;
     }
 
+    UA_ByteString_clear(&localeCertificate);
     UA_ByteString_clear(&data);
     mbedtls_x509_crt_free(&cert);
     return result;
@@ -686,8 +687,11 @@ mbedtls_compare_thumbprints(const UA_SecurityPolicy *securityPolicy,
         goto error;
     }
 
+    UA_ByteString_clear(&localCertThumbprint);
+    UA_ByteString_clear(&localCertificate);
     return UA_STATUSCODE_GOOD;
 error:
+    UA_ByteString_clear(&localCertThumbprint);
     UA_ByteString_clear(&localCertificate);
     return retval;
 }

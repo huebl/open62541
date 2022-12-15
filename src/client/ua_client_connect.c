@@ -222,6 +222,7 @@ checkCreateSessionSignature(UA_Client *client, const UA_SecureChannel *channel,
     retval = sp->certificateSigningAlgorithm.verify(channel->channelContext, &dataToVerify,
                                                     &response->serverSignature.signature);
     UA_ByteString_clear(&dataToVerify);
+    UA_ByteString_clear(&localCertificate);
     return retval;
 }
 

@@ -1059,7 +1059,8 @@ UA_Server_configAddKeyFormat(UA_Server *server, const UA_String *newKeyFormat) {
     }
     retval = UA_Server_writeValue(server,
              UA_NODEID_NUMERIC(0, UA_NS0ID_SERVERCONFIGURATION_SUPPORTEDPRIVATEKEYFORMATS), keyFormats);
-    UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]);
+    /* UA_Array_delete(keyFormats.data, keyFormats.arrayLength, &UA_TYPES[UA_TYPES_STRING]); */
+    UA_Variant_clear(&keyFormats);
     return retval;
 }
 
