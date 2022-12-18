@@ -1078,6 +1078,37 @@ channelContext_loadKeyThenDecrypt(
 }
 
 UA_StatusCode
+channelContext_parseKeyThenSign(
+	const Channel_Context_openssl* channelContext,
+	const UA_ByteString * message,
+	UA_ByteString *signature,
+	UA_ByteString *privateKeyStr,
+	UA_StatusCode (*callback)(
+		const Channel_Context_openssl* channelContext,
+		const UA_ByteString * message,
+		UA_ByteString *signature,
+		EVP_PKEY* privateKey
+	)
+)
+{
+	UA_StatusCode retval = UA_STATUSCODE_GOOD;
+
+	/* Check parameter */
+    if(channelContext == NULL || message == NULL || signature == NULL || privateKeyStr == NULL || callback == NULL) {
+	    return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
+    EVP_PKEY* privateKey = UA_OpenSSL_LoadPrivateKey(privateKeyStr);
+    if (retval != UA_STATUSCODE_GOOD) {
+     	return retval;
+    }
+
+    retval = callback(channelContext, message, signature, privateKey);
+ 	EVP_PKEY_free(privateKey);
+ 	return retval;
+}
+
+UA_StatusCode
 channelContext_loadKeyThenSign(
 	const Channel_Context_openssl* channelContext,
 	const UA_ByteString * message,
@@ -1090,6 +1121,10 @@ channelContext_loadKeyThenSign(
 	)
 )
 {
+	if (channelContext == NULL || message == NULL ||signature == NULL || callback == NULL) {
+		return UA_STATUSCODE_BADINTERNALERROR;
+	}
+
 	UA_StatusCode retval = UA_STATUSCODE_GOOD;
 
 	/* Check parameter */
@@ -1106,16 +1141,13 @@ channelContext_loadKeyThenSign(
     if (retval != UA_STATUSCODE_GOOD) {
     	return retval;
     }
-    EVP_PKEY* privateKey = UA_OpenSSL_LoadPrivateKey(&privateKeyStr);
-    if (retval != UA_STATUSCODE_GOOD) {
-    	UA_ByteString_clear(&privateKeyStr);
-    	return retval;
-    }
 
-    retval = callback(channelContext, message, signature, privateKey);
-	UA_ByteString_clear(&privateKeyStr);
-	EVP_PKEY_free(privateKey);
-	return retval;
+    retval = channelContext_parseKeyThenSign(
+    	channelContext, message, signature, &privateKeyStr, callback
+	);
+
+    UA_ByteString_clear(&privateKeyStr);
+    return retval;
 }
 
 size_t

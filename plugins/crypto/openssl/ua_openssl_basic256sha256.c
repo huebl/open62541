@@ -362,14 +362,28 @@ asySig_Basic256Sha256_sign(const Channel_Context_openssl *channelContext, const 
 }
 
 static UA_StatusCode
-UA_AsySig_Basic256Sha256_sign(void *channelContext, const UA_ByteString * message,
-                              UA_ByteString *signature) {
+UA_AsySig_Basic256Sha256_sign(
+	void *channelContext, const UA_ByteString * message, UA_ByteString *signature
+) {
     if(channelContext == NULL || message == NULL || signature == NULL)
         return UA_STATUSCODE_BADINTERNALERROR;
 
     return channelContext_loadKeyThenSign(
     	(const Channel_Context_openssl*) channelContext, message,
     	signature, asySig_Basic256Sha256_sign
+	);
+}
+
+static UA_StatusCode
+UA_AsySig_Basic256Sha256_signAuth(
+	void *channelContext, const UA_ByteString *message, UA_ByteString *signature, UA_ByteString *privateKey
+) {
+	if(channelContext == NULL || message == NULL || signature == NULL || privateKey == NULL) {
+	    return UA_STATUSCODE_BADINTERNALERROR;
+	}
+	return channelContext_parseKeyThenSign(
+	    (const Channel_Context_openssl*)channelContext, message,
+	    signature, privateKey, asySig_Basic256Sha256_sign
 	);
 }
 
@@ -506,6 +520,7 @@ UA_SecurityPolicy_Basic256Sha256(
     asySigAlgorithm->uri = UA_STRING("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256\0");
     asySigAlgorithm->verify = UA_AsySig_Basic256Sha256_Verify;
     asySigAlgorithm->sign = UA_AsySig_Basic256Sha256_sign;
+    asySigAlgorithm->signAuth = UA_AsySig_Basic256Sha256_signAuth;
     asySigAlgorithm->getLocalSignatureSize = UA_AsySig_Basic256Sha256_getLocalSignatureSize;
     asySigAlgorithm->getRemoteSignatureSize = UA_Asym_Basic256Sha256_getRemoteSignatureSize;
     asySigAlgorithm->getLocalKeyLength = NULL;

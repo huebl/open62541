@@ -68,6 +68,7 @@ UA_ClientConfig_clear(UA_ClientConfig *config) {
     UA_ApplicationDescription_clear(&config->clientDescription);
 
     UA_ExtensionObject_clear(&config->userIdentityToken);
+    UA_ByteString_clear(config->privateKeyAuth);
 
     /* Delete the SecurityPolicies for Authentication */
     if(config->authSecurityPolicies != 0) {

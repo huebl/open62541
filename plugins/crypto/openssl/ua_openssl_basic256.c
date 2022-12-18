@@ -294,6 +294,19 @@ UA_AsySig_Basic256_Sign(void *channelContext, const UA_ByteString * message,
 	);
 }
 
+static UA_StatusCode
+UA_AsySig_Basic256_SignAuth(
+	void *channelContext, const UA_ByteString *message, UA_ByteString *signature, UA_ByteString *privateKey
+) {
+	if(channelContext == NULL || message == NULL || signature == NULL || privateKey == NULL) {
+	    return UA_STATUSCODE_BADINTERNALERROR;
+	}
+	return channelContext_parseKeyThenSign(
+	    (const Channel_Context_openssl*)channelContext, message,
+	    signature, privateKey, asySig_Basic256_Sign
+	);
+}
+
 static size_t
 UA_AsymEn_Basic256_getRemotePlainTextBlockSize (const void *channelContext) {
     if (channelContext == NULL) {
@@ -517,6 +530,7 @@ UA_SecurityPolicy_Basic256 (UA_SecurityPolicy * policy,
     asySigAlgorithm->getLocalSignatureSize = UA_AsySig_Basic256_getLocalSignatureSize;
     asySigAlgorithm->verify = UA_AsySig_Basic256_Verify;
     asySigAlgorithm->sign = UA_AsySig_Basic256_Sign;
+    asySigAlgorithm->signAuth = UA_AsySig_Basic256_SignAuth;
     asySigAlgorithm->getLocalKeyLength = NULL;
     asySigAlgorithm->getRemoteKeyLength = NULL;
 

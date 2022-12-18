@@ -48,6 +48,20 @@ channelContext_loadKeyThenDecrypt(
 );
 
 UA_StatusCode
+channelContext_parseKeyThenSign(
+	const Channel_Context_openssl* channelContext,
+	const UA_ByteString * message,
+	UA_ByteString *signature,
+	UA_ByteString *privateKeyStr,
+	UA_StatusCode (*callback)(
+		const Channel_Context_openssl* channelContext,
+		const UA_ByteString * message,
+		UA_ByteString *signature,
+		EVP_PKEY* privateKey
+	)
+);
+
+UA_StatusCode
 channelContext_loadKeyThenSign(
 	const Channel_Context_openssl* channelContext,
 	const UA_ByteString * message,
