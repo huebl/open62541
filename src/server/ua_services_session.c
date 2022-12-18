@@ -294,9 +294,10 @@ Service_CreateSession(UA_Server *server, UA_SecureChannel *channel,
 
     if(request->clientCertificate.length > 0) {
         UA_CertificateManager *cm = &server->config.certificateManager;
-        response->responseHeader.serviceResult =
-            cm->verifyApplicationURI(cm, channel->endpoint->pkiStore, &request->clientCertificate,
-                                     &request->clientDescription.applicationUri);
+        response->responseHeader.serviceResult = cm->verifyApplicationURI(
+        	cm, channel->endpoint->pkiStore, &request->clientCertificate,
+            &request->clientDescription.applicationUri
+		);
         if(response->responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
             UA_LOG_WARNING_CHANNEL(&server->config.logger, channel,
                                    "The client's ApplicationURI did not match the certificate");
@@ -443,19 +444,11 @@ Service_CreateSession(UA_Server *server, UA_SecureChannel *channel,
 }
 
 static UA_StatusCode
-checkSignature_WithEndpoint(const UA_Server *server, const UA_Endpoint *endpoint,
-               void *channelContext, const UA_ByteString *serverNonce,
-               const UA_SignatureData *signature) {
-
-    /* Check for zero signature length */
-    if(signature->signature.length == 0)
-        return UA_STATUSCODE_BADAPPLICATIONSIGNATUREINVALID;
-
-    if(!endpoint)
-        return UA_STATUSCODE_BADINTERNALERROR;
-
-    const UA_SecurityPolicy *const securityPolicy = endpoint->securityPolicy;
-    UA_PKIStore *const pkiStore = endpoint->pkiStore;
+checkSignature_WithSecurityPolicy(
+	const UA_Server *server, UA_PKIStore* pkiStore,
+	const UA_SecurityPolicy* securityPolicy, void *channelContext,
+	const UA_ByteString *serverNonce, const UA_SignatureData *signature
+) {
     UA_ByteString localCertificate;
     UA_ByteString_init(&localCertificate);
     UA_StatusCode retval = securityPolicy->getLocalCertificate(
@@ -481,6 +474,26 @@ checkSignature_WithEndpoint(const UA_Server *server, const UA_Endpoint *endpoint
     UA_ByteString_clear(&dataToVerify);
     UA_ByteString_clear(&localCertificate);
     return retval;
+}
+
+static UA_StatusCode
+checkSignature_WithEndpoint(const UA_Server *server, const UA_Endpoint *endpoint,
+               void *channelContext, const UA_ByteString *serverNonce,
+               const UA_SignatureData *signature) {
+
+    /* Check for zero signature length */
+    if(signature->signature.length == 0)
+        return UA_STATUSCODE_BADAPPLICATIONSIGNATUREINVALID;
+
+    if(!endpoint)
+        return UA_STATUSCODE_BADINTERNALERROR;
+
+    const UA_SecurityPolicy *const securityPolicy = endpoint->securityPolicy;
+    UA_PKIStore* pkiStore = endpoint->pkiStore;
+
+    return checkSignature_WithSecurityPolicy(
+        server, pkiStore, securityPolicy, channelContext, serverNonce, signature
+    );
 }
 
 #ifdef UA_ENABLE_ENCRYPTION
@@ -836,13 +849,31 @@ Service_ActivateSession(UA_Server *server, UA_SecureChannel *channel,
             goto securityRejected;
         }
 
-        /* Check the user token signature */
-        response->responseHeader.serviceResult =
-#if 0/* FIXME: HUK */
-            checkSignature(server, utpSecurityPolicy, tempChannelContext,
-#endif
-            checkSignature_WithEndpoint(server, channel->endpoint, tempChannelContext,
-                           &session->serverNonce, &request->userTokenSignature);
+        /* client X509 authentication certificate must be trusted */
+        UA_TrustListDataType trustList;
+        UA_TrustListDataType_init(&trustList);
+        trustList.specifiedLists = UA_TRUSTLISTMASKS_TRUSTEDCERTIFICATES;
+        channel->endpoint->pkiStore->loadTrustList(channel->endpoint->pkiStore, &trustList);
+
+        bool authCertFound = false;
+        for (size_t idx = 0; idx < trustList.trustedCertificatesSize; idx++) {
+        	if(UA_ByteString_equal(&trustList.trustedCertificates[idx], &userCertToken->certificateData)) {
+        		authCertFound = true;
+        		break;
+        	}
+        }
+        UA_TrustListDataType_clear(&trustList);
+
+        if (authCertFound) {
+        	/* Check the user token signature */
+        	response->responseHeader.serviceResult = checkSignature_WithSecurityPolicy(
+        		server, channel->endpoint->pkiStore, utpSecurityPolicy,
+				tempChannelContext, &session->serverNonce, &request->userTokenSignature
+        	);
+        }
+        else {
+        	response->responseHeader.serviceResult = UA_STATUSCODE_BADCERTIFICATEUNTRUSTED;
+        }
 
         /* Delete the temporary channel context */
         UA_UNLOCK(&server->serviceMutex);
