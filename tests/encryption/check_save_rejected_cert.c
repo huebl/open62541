@@ -471,7 +471,11 @@ START_TEST(encryption_connect_reject_cert) {
 
     /* Secure client connect - certificate is not trusted on server*/
     retval = UA_Client_connect(client, "opc.tcp://localhost:4840");
+#if defined(UA_ENABLE_ENCRYPTION_LIBRESSL)
+    ck_assert_uint_eq(retval, UA_STATUSCODE_BADCERTIFICATEINVALID);
+#else
     ck_assert_uint_eq(retval, UA_STATUSCODE_BADSECURITYCHECKSFAILED);
+#endif
 
     /* Check number of rejected certificates rejected list */
     rejectedList = NULL;
